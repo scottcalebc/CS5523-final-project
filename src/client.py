@@ -10,9 +10,6 @@ import interfaces.chatserver_pb2_grpc as rpc
 address = 'localhost'
 port = 11912
 
-
-
-
 class Client:
 
     def __init__(self, u: str, window):
