@@ -14,8 +14,8 @@ class ChatServerStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.chatStream = channel.unary_stream(
-                '/grpc.ChatServer/chatStream',
+        self.ChatStream = channel.unary_stream(
+                '/grpc.ChatServer/ChatStream',
                 request_serializer=interfaces_dot_chatserver__pb2.Empty.SerializeToString,
                 response_deserializer=interfaces_dot_chatserver__pb2.Note.FromString,
                 )
@@ -29,7 +29,7 @@ class ChatServerStub(object):
 class ChatServerServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def chatStream(self, request, context):
+    def ChatStream(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -44,8 +44,8 @@ class ChatServerServicer(object):
 
 def add_ChatServerServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'chatStream': grpc.unary_stream_rpc_method_handler(
-                    servicer.chatStream,
+            'ChatStream': grpc.unary_stream_rpc_method_handler(
+                    servicer.ChatStream,
                     request_deserializer=interfaces_dot_chatserver__pb2.Empty.FromString,
                     response_serializer=interfaces_dot_chatserver__pb2.Note.SerializeToString,
             ),
@@ -65,7 +65,7 @@ class ChatServer(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def chatStream(request,
+    def ChatStream(request,
             target,
             options=(),
             channel_credentials=None,
@@ -75,7 +75,7 @@ class ChatServer(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/grpc.ChatServer/chatStream',
+        return grpc.experimental.unary_stream(request, target, '/grpc.ChatServer/ChatStream',
             interfaces_dot_chatserver__pb2.Empty.SerializeToString,
             interfaces_dot_chatserver__pb2.Note.FromString,
             options, channel_credentials,

@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x1binterfaces/chatserver.proto\x12\x04grpc\"\x07\n\x05\x45mpty\"%\n\x04Note\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t2Z\n\nChatServer\x12\'\n\nchatStream\x12\x0b.grpc.Empty\x1a\n.grpc.Note0\x01\x12#\n\x08SendNote\x12\n.grpc.Note\x1a\x0b.grpc.Emptyb\x06proto3'
+  serialized_pb=b'\n\x1binterfaces/chatserver.proto\x12\x04grpc\"\x07\n\x05\x45mpty\"%\n\x04Note\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t2Z\n\nChatServer\x12\'\n\nChatStream\x12\x0b.grpc.Empty\x1a\n.grpc.Note0\x01\x12#\n\x08SendNote\x12\n.grpc.Note\x1a\x0b.grpc.Emptyb\x06proto3'
 )
 
 
@@ -119,8 +119,8 @@ _CHATSERVER = _descriptor.ServiceDescriptor(
   serialized_end=175,
   methods=[
   _descriptor.MethodDescriptor(
-    name='chatStream',
-    full_name='grpc.ChatServer.chatStream',
+    name='ChatStream',
+    full_name='grpc.ChatServer.ChatStream',
     index=0,
     containing_service=None,
     input_type=_EMPTY,

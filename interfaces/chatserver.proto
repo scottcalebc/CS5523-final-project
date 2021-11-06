@@ -11,6 +11,6 @@ message Note {
 
 service ChatServer {
 
-    rpc chatStream (Empty) returns (stream Note);
+    rpc ChatStream (Empty) returns (stream Note);
     rpc SendNote (Note) returns (Empty);
 }
