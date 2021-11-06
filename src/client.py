@@ -12,10 +12,11 @@ port = 11912
 
 class Client:
 
-    def __init__(self, u: str, window):
+    def __init__(self, u: str, g: str, window):
         # the frame to put ui components on
         self.window = window
         self.username = u
+        self.group = g
         # create a gRPC channel + stub
         channel = grpc.insecure_channel(address + ':' + str(port))
         self.conn = rpc.ChatServerStub(channel)
@@ -29,7 +30,9 @@ class Client:
         This method will be ran in a separate thread as the main/ui thread, because the for-in call is blocking
         when waiting for new messages
         """
-        for note in self.conn.ChatStream(chat.Empty()):  # this line will wait for new messages from the server!
+        g = chat.Group()
+        g.name = self.group
+        for note in self.conn.ChatStream(g):  # this line will wait for new messages from the server!
             print("R[{}] {}".format(note.name, note.message))  # debugging statement
             self.chat_list.insert(END, "[{}] {}\n".format(note.name, note.message))  # add the message to the UI
 
@@ -38,10 +41,11 @@ class Client:
         This method is called when user enters something into the textbox
         """
         message = self.entry_message.get()  # retrieve message from the UI
-        if message is not '':
+        if message is not "":
             n = chat.Note()  # create protobug message (called Note)
             n.name = self.username  # set the username
             n.message = message  # set the actual message of the note
+            n.group = self.group
             print("S[{}] {}".format(n.name, n.message))  # debugging statement
             self.conn.SendNote(n)  # send the Note to the server
 
@@ -65,5 +69,6 @@ if __name__ == '__main__':
     while username is None:
         # retrieve a username so we can distinguish all the different clients
         username = simpledialog.askstring("Username", "What's your username?", parent=root)
+        group = simpledialog.askstring("Group", "What group do you want to join?", parent=root)
     root.deiconify()  # don't remember why this was needed anymore...
-    c = Client(username, frame)  
+    c = Client(username, group, frame)  

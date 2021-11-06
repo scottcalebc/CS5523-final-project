@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x1binterfaces/chatserver.proto\x12\x04grpc\"\x07\n\x05\x45mpty\"%\n\x04Note\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t2Z\n\nChatServer\x12\'\n\nChatStream\x12\x0b.grpc.Empty\x1a\n.grpc.Note0\x01\x12#\n\x08SendNote\x12\n.grpc.Note\x1a\x0b.grpc.Emptyb\x06proto3'
+  serialized_pb=b'\n\x1binterfaces/chatserver.proto\x12\x04grpc\"\x07\n\x05\x45mpty\"4\n\x04Note\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\r\n\x05group\x18\x03 \x01(\t\"\x15\n\x05Group\x12\x0c\n\x04name\x18\x01 \x01(\t2Z\n\nChatServer\x12\'\n\nChatStream\x12\x0b.grpc.Group\x1a\n.grpc.Note0\x01\x12#\n\x08SendNote\x12\n.grpc.Note\x1a\x0b.grpc.Emptyb\x06proto3'
 )
 
 
@@ -72,6 +72,13 @@ _NOTE = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='group', full_name='grpc.Note.group', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -85,11 +92,44 @@ _NOTE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=46,
-  serialized_end=83,
+  serialized_end=98,
+)
+
+
+_GROUP = _descriptor.Descriptor(
+  name='Group',
+  full_name='grpc.Group',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='name', full_name='grpc.Group.name', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=100,
+  serialized_end=121,
 )
 
 DESCRIPTOR.message_types_by_name['Empty'] = _EMPTY
 DESCRIPTOR.message_types_by_name['Note'] = _NOTE
+DESCRIPTOR.message_types_by_name['Group'] = _GROUP
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 Empty = _reflection.GeneratedProtocolMessageType('Empty', (_message.Message,), {
@@ -106,6 +146,13 @@ Note = _reflection.GeneratedProtocolMessageType('Note', (_message.Message,), {
   })
 _sym_db.RegisterMessage(Note)
 
+Group = _reflection.GeneratedProtocolMessageType('Group', (_message.Message,), {
+  'DESCRIPTOR' : _GROUP,
+  '__module__' : 'interfaces.chatserver_pb2'
+  # @@protoc_insertion_point(class_scope:grpc.Group)
+  })
+_sym_db.RegisterMessage(Group)
+
 
 
 _CHATSERVER = _descriptor.ServiceDescriptor(
@@ -115,15 +162,15 @@ _CHATSERVER = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=85,
-  serialized_end=175,
+  serialized_start=123,
+  serialized_end=213,
   methods=[
   _descriptor.MethodDescriptor(
     name='ChatStream',
     full_name='grpc.ChatServer.ChatStream',
     index=0,
     containing_service=None,
-    input_type=_EMPTY,
+    input_type=_GROUP,
     output_type=_NOTE,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,

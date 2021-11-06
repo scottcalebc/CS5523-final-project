@@ -14,10 +14,10 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
 
     def __init__(self):
         # List with all the chat history
-        self.chats = []
+        self.chats = {}
 
     # The stream which will be used to send new messages to clients
-    def ChatStream(self, request_iterator, context):
+    def ChatStream(self, request: chat.Group, context):
         """
         This is a response-stream type call. This means the server can keep sending messages
         Every client opens this connection and waits for server to send new messages
@@ -26,12 +26,15 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
         :param context:
         :return:
         """
+        print(f"Request for group {request.name}")
+        if self.chats.get(request.name, None) == None:
+            self.chats[request.name] = []
         lastindex = 0
         # For every client a infinite loop starts (in gRPC's own managed thread)
         while True:
             # Check if there are any new messages
-            while len(self.chats) > lastindex:
-                n = self.chats[lastindex]
+            while len(self.chats[request.name]) > lastindex:
+                n = self.chats[request.name][lastindex]
                 lastindex += 1
                 yield n
 
@@ -44,9 +47,12 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
         :return:
         """
         # this is only for the server console
-        print("[{}] {}".format(request.name, request.message))
+        print("[{}] {} in group {}".format(request.name, request.message, request.group))
         # Add it to the chat history
-        self.chats.append(request)
+        if self.chats.get(request.group, None) == None:
+            self.chats[request.group] = []
+
+        self.chats[request.group].append(request)
         return chat.Empty()  # something needs to be returned required by protobuf language, we just return empty msg
 
 
