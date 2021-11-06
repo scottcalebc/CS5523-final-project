@@ -1,5 +1,6 @@
 #!/bin/bash
 
+proj_path=$(pwd)
 
 build_proto() {
     python3 -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. $1
@@ -14,14 +15,25 @@ usage() {
     echo "      Must be run within root directory of project"
 }
 
-if [ $# -gt 2 ]; then
-    usage
-fi
+build() {
+    echo "Building proto file $1 ..."
+    build_proto $1
+    echo "Finished building"
+    
+    
+}
 
-echo "Building proto file $1 ..."
-build_proto $1
-echo "Finished building"
-proj_path=$(pwd)
-echo "Setting python path for project for easy imports to $proj_path..."
-export PYTHONPATH="$proj_path:$PTYHONPATH"
+
+case $# in
+    0)
+        echo "Setting python path (must be sourced) for project for easy imports to $proj_path..."
+        export PYTHONPATH="$proj_path:$PTYHONPATH"
+        ;;
+    1)
+        build $1
+        ;;
+    *)
+        usage
+    ;;
+esac
 
