@@ -35,7 +35,7 @@ class Client:
         This method will be ran in a separate thread as the main/ui thread, because the for-in call is blocking
         when waiting for new messages
         """
-        g = chat.Group()
+        g = global_msg.Group()
         g.name = self.group
         for note in self.conn.ChatStream(g):  # this line will wait for new messages from the server!
             print("R[{}] {}".format(note.name, note.message))  # debugging statement
@@ -47,7 +47,7 @@ class Client:
         """
         message = self.entry_message.get()  # retrieve message from the UI
         if message is not "":
-            n = chat.Note()  # create protobug message (called Note)
+            n = global_msg.Note()  # create protobug message (called Note)
             n.name = self.username  # set the username
             n.message = message  # set the actual message of the note
             n.group = self.group

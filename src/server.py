@@ -24,7 +24,7 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
         self.chats = {}
 
     # The stream which will be used to send new messages to clients
-    def ChatStream(self, request: chat.Group, context):
+    def ChatStream(self, request: global_msg.Group, context):
         """
         This is a response-stream type call. This means the server can keep sending messages
         Every client opens this connection and waits for server to send new messages
@@ -45,7 +45,7 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
                 lastindex += 1
                 yield n
 
-    def SendNote(self, request: chat.Note, context):
+    def SendNote(self, request: global_msg.Note, context):
         """
         This method is called when a clients sends a Note to the server.
 
@@ -60,7 +60,7 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
             self.chats[request.group] = []
 
         self.chats[request.group].append(request)
-        return chat.Empty()  # something needs to be returned required by protobuf language, we just return empty msg
+        return global_msg.Empty()  # something needs to be returned required by protobuf language, we just return empty msg
 
 
 if __name__ == '__main__':
