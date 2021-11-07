@@ -7,7 +7,6 @@ import helper_funcs
 
 import interfaces.globalmessage_pb2 as global_msg
 
-import interfaces.chatserver_pb2 as chat
 import interfaces.chatserver_pb2_grpc as rpc
 
 import interfaces.nameservice_pb2 as ns_msg
