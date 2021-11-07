@@ -3,8 +3,15 @@ from concurrent import futures
 import grpc
 import time
 
+import helper_funcs
+
+import interfaces.globalmessage_pb2 as global_msg
+
 import interfaces.chatserver_pb2 as chat
 import interfaces.chatserver_pb2_grpc as rpc
+
+import interfaces.nameservice_pb2 as ns_msg
+import interfaces.nameservice_pb2_grpc as ns_rpc
 
 
 
@@ -65,9 +72,32 @@ if __name__ == '__main__':
     # gRPC basically manages all the threading and server responding logic, which is perfect!
     print('Starting server. Listening...')
     server.add_insecure_port('[::]:' + str(port))
+    
+
+    # After starting server need to register with nameservice
+    port_ns = 3535
+    address_ns = '127.0.0.1'
+    ns = grpc.insecure_channel(address_ns + ":" + str(port_ns))
+    conn_ns = ns_rpc.NameServerStub(ns)
+
+    registerMessage = ns_msg.RegisterServer()
+    registerMessage.ipAddress = helper_funcs.get_ip()
+    registerMessage.id = "1234"
+    registerMessage.port = port
+    print(registerMessage.ipAddress)
+
+    g = global_msg.Group()
+    g.name = "all"
+    conn_ns.getChannel(g)
+
+    conn_ns.registerChatServer(registerMessage)
+
+
     server.start()
+
     # Server starts in background (in another thread) so keep waiting
     # if we don't wait here the main thread will end, which will end all the child threads, and thus the threads
     # from the server won't continue to work and stop the server
+
     while True:
         time.sleep(64 * 64 * 100)

@@ -3,22 +3,27 @@ from tkinter import *
 from tkinter import simpledialog
 
 import grpc
+import sys
+import helper_funcs
+
+import interfaces.globalmessage_pb2 as global_msg
 
 import interfaces.chatserver_pb2 as chat
 import interfaces.chatserver_pb2_grpc as rpc
 
-address = 'localhost'
-port = 11912
+import interfaces.nameservice_pb2 as chat_ns
+import interfaces.nameservice_pb2_grpc as rpc_ns
+
 
 class Client:
 
-    def __init__(self, u: str, g: str, window):
+    def __init__(self, u: str, g: str, chatServer, window):
         # the frame to put ui components on
         self.window = window
         self.username = u
         self.group = g
         # create a gRPC channel + stub
-        channel = grpc.insecure_channel(address + ':' + str(port))
+        channel = grpc.insecure_channel(chatServer.ipAddress + ':' + str(chatServer.port))
         self.conn = rpc.ChatServerStub(channel)
         # create new listening thread for when new message streams come in
         threading.Thread(target=self.__listen_for_messages, daemon=True).start()
@@ -71,4 +76,21 @@ if __name__ == '__main__':
         username = simpledialog.askstring("Username", "What's your username?", parent=root)
         group = simpledialog.askstring("Group", "What group do you want to join?", parent=root)
     root.deiconify()  # don't remember why this was needed anymore...
-    c = Client(username, group, frame)  
+
+    # first need to get server information
+    port_ns = 3535
+    address_ns = 'localhost'
+    ns = grpc.insecure_channel(address_ns + ':' + str(port_ns))
+    conn_ns = rpc_ns.NameServerStub(ns)
+
+
+
+    groupMsg = global_msg.Group()
+    groupMsg.name = group
+    chatServer = conn_ns.getChannel(groupMsg)
+
+    if chatServer.status != 1:
+        print("Could not find server disconnecting")
+        sys.exit(1)      
+
+    c = Client(username, group, chatServer, frame)  
