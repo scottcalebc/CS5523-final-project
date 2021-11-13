@@ -3,12 +3,20 @@
 proj_path=$(pwd)
 
 build_proto() {
-    python3 -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. $1
+    if [[ -f $1 ]]; then
+        echo "Building proto file $1..."
+        python3 -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. $1
+    else
+        echo "Attempting to build all proto files in $1 directory"
+        for proto_file in "$1*.proto"; do
+            python3 -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. $proto_file
+        done
+    fi
 }
 
 usage() {
 
-    echo "Usage: ./buildProto.sh proto"
+    echo "Usage: ./buildProto.sh (proto_file|proto_path)"
     echo "      proto - Name of the proto file you wish to copmile"
     echo ""
     echo "Note:"
@@ -16,7 +24,7 @@ usage() {
 }
 
 build() {
-    echo "Building proto file $1 ..."
+
     build_proto $1
     echo "Finished building"
     

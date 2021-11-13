@@ -3,8 +3,14 @@ from concurrent import futures
 import grpc
 import time
 
-import interfaces.chatserver_pb2 as chat
+import helper_funcs
+
+import interfaces.globalmessage_pb2 as global_msg
+
 import interfaces.chatserver_pb2_grpc as rpc
+
+import interfaces.nameservice_pb2 as ns_msg
+import interfaces.nameservice_pb2_grpc as ns_rpc
 
 
 
@@ -17,7 +23,7 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
         self.chats = {}
 
     # The stream which will be used to send new messages to clients
-    def ChatStream(self, request: chat.Group, context):
+    def ChatStream(self, request: global_msg.Group, context):
         """
         This is a response-stream type call. This means the server can keep sending messages
         Every client opens this connection and waits for server to send new messages
@@ -38,7 +44,7 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
                 lastindex += 1
                 yield n
 
-    def SendNote(self, request: chat.Note, context):
+    def SendNote(self, request: global_msg.Note, context):
         """
         This method is called when a clients sends a Note to the server.
 
@@ -53,7 +59,7 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
             self.chats[request.group] = []
 
         self.chats[request.group].append(request)
-        return chat.Empty()  # something needs to be returned required by protobuf language, we just return empty msg
+        return global_msg.Empty()  # something needs to be returned required by protobuf language, we just return empty msg
 
 
 if __name__ == '__main__':
@@ -65,9 +71,32 @@ if __name__ == '__main__':
     # gRPC basically manages all the threading and server responding logic, which is perfect!
     print('Starting server. Listening...')
     server.add_insecure_port('[::]:' + str(port))
+    
+
+    # After starting server need to register with nameservice
+    port_ns = 3535
+    address_ns = '127.0.0.1'
+    ns = grpc.insecure_channel(address_ns + ":" + str(port_ns))
+    conn_ns = ns_rpc.NameServerStub(ns)
+
+    registerMessage = ns_msg.RegisterServer()
+    registerMessage.ipAddress = helper_funcs.get_ip()
+    registerMessage.id = "1234"
+    registerMessage.port = port
+    print(registerMessage.ipAddress)
+
+    g = global_msg.Group()
+    g.name = "all"
+    conn_ns.getChannel(g)
+
+    conn_ns.registerChatServer(registerMessage)
+
+
     server.start()
+
     # Server starts in background (in another thread) so keep waiting
     # if we don't wait here the main thread will end, which will end all the child threads, and thus the threads
     # from the server won't continue to work and stop the server
+
     while True:
         time.sleep(64 * 64 * 100)

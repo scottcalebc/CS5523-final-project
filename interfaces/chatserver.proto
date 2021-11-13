@@ -1,18 +1,9 @@
 syntax = "proto3";
 
-package grpc;
+import "interfaces/globalmessage.proto";
 
-message Empty {}
+package chatsystem;
 
-message Note {
-    string name = 1;
-    string message = 2;
-    string group = 3;
-}
-
-message Group {
-    string name = 1;
-}
 
 service ChatServer {
 
