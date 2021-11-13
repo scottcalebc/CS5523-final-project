@@ -13,7 +13,7 @@ import interfaces.nameservice_pb2 as ns_msg
 import interfaces.nameservice_pb2_grpc as ns_rpc
 
 
-
+# test comment for local change
 
 
 class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf rpc file which is generated
