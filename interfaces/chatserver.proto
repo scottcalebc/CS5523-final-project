@@ -9,4 +9,6 @@ service ChatServer {
 
     rpc ChatStream (Group) returns (stream Note);
     rpc SendNote (Note) returns (Empty);
+
+    rpc GetHistory(GroupHistory) returns (stream Note);
 }
