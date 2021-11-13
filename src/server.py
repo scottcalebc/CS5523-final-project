@@ -22,6 +22,9 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
         # List with all the chat history
         self.chats = {}
 
+    def GetHistory(self, request, context):
+        context.abort(grpc.StatusCode.UNIMPLEMENTED)
+
     # The stream which will be used to send new messages to clients
     def ChatStream(self, request: global_msg.Group, context):
         """
