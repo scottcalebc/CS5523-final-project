@@ -70,7 +70,7 @@ if __name__ == '__main__':
     rpc.add_ChatServerServicer_to_server(ChatServer(), server)  # register the server to gRPC
     # gRPC basically manages all the threading and server responding logic, which is perfect!
     print('Starting server. Listening...')
-    server.add_insecure_port('[::]:' + str(port))
+    server.add_insecure_port('127.0.0.1:' + str(port))
     
 
     # After starting server need to register with nameservice
