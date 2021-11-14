@@ -21,6 +21,7 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
     def __init__(self):
         # List with all the chat history
         self.chats = {}
+        self.clients = {}
 
     def GetHistory(self, request, context):
         context.abort(grpc.StatusCode.UNIMPLEMENTED)
@@ -38,7 +39,13 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
         print(f"Request for group {request.name}")
         if self.chats.get(request.name, None) == None:
             self.chats[request.name] = []
+
+        if self.clients.get(request.user.userName, None) == None:
+            group_index = 0 if len(self.chats[request.group.name]) < 1 else len(self.chats[request.group.name]) - 1
+            self.clients[request.user.userName] = {request.group.name : group_index}
+
         lastindex = 0 if len(self.chats[request.name]) == 0 else len(self.chats[request.name])
+        
         # For every client a infinite loop starts (in gRPC's own managed thread)
         while True:
             # Check if there are any new messages
@@ -60,6 +67,12 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
         # Add it to the chat history
         if self.chats.get(request.group, None) == None:
             self.chats[request.group] = []
+
+        if self.clients.get(request.user.userName, None) == None:
+            group_index = len(self.chats[request.name])
+            self.clients[request.user.userName] = {request.group.name : group_index }
+        else:
+            self.clients[request.user.userName][request.group.name] = len(self.chats[request.group.name])
 
         self.chats[request.group].append(request)
         return global_msg.Empty()  # something needs to be returned required by protobuf language, we just return empty msg
