@@ -38,7 +38,7 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
         print(f"Request for group {request.name}")
         if self.chats.get(request.name, None) == None:
             self.chats[request.name] = []
-        lastindex = 0
+        lastindex = 0 if len(self.chats[request.name]) == 0 else len(self.chats[request.name])
         # For every client a infinite loop starts (in gRPC's own managed thread)
         while True:
             # Check if there are any new messages
