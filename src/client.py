@@ -5,6 +5,9 @@ from tkinter import simpledialog
 import grpc
 import sys
 import helper_funcs
+import datetime
+
+from google.protobuf.timestamp_pb2 import Timestamp
 
 import interfaces.globalmessage_pb2 as global_msg
 
@@ -65,8 +68,13 @@ class Client:
             n.user.displayName = self.username
             n.message = message  # set the actual message of the note
             n.group.name = self.group
-            print("S[{}] {}".format(n.user.displayName, n.message))  # debugging statement
-            print(n)
+            now = datetime.datetime.now()
+            # ts = Timestamp()
+            # ts.FromDatetime(now)
+            n.timestamp.FromDatetime(now)
+            print("S[{} @ {}] {}".format(n.user.displayName, n.timestamp, n.message))  # debugging statement
+
+            
             self.conn.SendNote(n)  # send the Note to the server
 
     def __setup_ui(self):
