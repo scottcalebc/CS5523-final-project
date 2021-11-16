@@ -54,7 +54,9 @@ class Client:
         for note in self.conn.ChatStream(g):  # this line will wait for new messages from the server!
             print(note)
             print("R[{}] {}".format(note.user.displayName, note.message))  # debugging statement
-            self.chat_list.insert(END, "[{}] {}\n".format(note.user.displayName, note.message))  # add the message to the UI
+
+            date = note.timestamp.ToDatetime()
+            self.chat_list.insert(END, "[{} @ {}] {}\n".format(note.user.displayName, date, note.message))  # add the message to the UI
 
     def send_message(self, event):
         """
@@ -72,7 +74,7 @@ class Client:
             # ts = Timestamp()
             # ts.FromDatetime(now)
             n.timestamp.FromDatetime(now)
-            print("S[{} @ {}] {}".format(n.user.displayName, n.timestamp, n.message))  # debugging statement
+            print("S[{} @ {}] {}".format(n.user.displayName, now, n.message))  # debugging statement
 
             
             self.conn.SendNote(n)  # send the Note to the server
