@@ -16,6 +16,7 @@ import interfaces.nameservice_pb2_grpc as ns_rpc
 # test comment for local change
 
 
+
 class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf rpc file which is generated
 
     def __init__(self):
@@ -26,7 +27,16 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
     def GetHistory(self, request, context):
         print(f"GetHistory called by {context.peer()}")
         context.abort(grpc.StatusCode.UNIMPLEMENTED, "History unavailable")
+########## I want to let the client knows the server is down.#######
+    def Do(self, request, context):
+        if not is_valid_field(request.field):
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details('Consarnit!')
+            ###I am not sure if the following is the correct destination proto file##
+            return chatserver_pb2.Response()
 
+        return chatserver_pb2.Response(response='Yeah!')
+##################################################################
     # The stream which will be used to send new messages to clients
     def ChatStream(self, request: global_msg.Group, context):
         """

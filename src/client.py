@@ -88,8 +88,9 @@ class Client:
         self.entry_message.bind('<Return>', self.send_message)
         self.entry_message.focus()
         self.entry_message.pack(side=BOTTOM)
+####################################connection errors#######
 
-
+############################################################
 if __name__ == '__main__':
     root = Tk()  # I just used a very simple Tk window for the chat UI, this can be replaced by anything
     frame = Frame(root, width=300, height=300)
@@ -101,6 +102,10 @@ if __name__ == '__main__':
         username = simpledialog.askstring("Username", "What's your username?", parent=root)
         group = simpledialog.askstring("Group", "What group do you want to join?", parent=root)
     root.deiconify()  # don't remember why this was needed anymore...
+###I added exit button instead of clicking ctrl+c to exit client##
+    exit_button = Button(root, text="Exit", command=root.destroy)
+    exit_button.pack(pady=20)
+
 
     # first need to get server information
     port_ns = 3535
