@@ -13,6 +13,7 @@ import interfaces.nameservice_pb2 as ns_msg
 import interfaces.nameservice_pb2_grpc as ns_rpc
 
 
+# test comment for local change
 
 
 
@@ -21,7 +22,21 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
     def __init__(self):
         # List with all the chat history
         self.chats = {}
+        self.clients = {}
 
+    def GetHistory(self, request, context):
+        print(f"GetHistory called by {context.peer()}")
+        context.abort(grpc.StatusCode.UNIMPLEMENTED, "History unavailable")
+########## I want to let the client knows the server is down.#######
+    def Do(self, request, context):
+        if not is_valid_field(request.field):
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details('Consarnit!')
+            ###I am not sure if the following is the correct destination proto file##
+            return chatserver_pb2.Response()
+
+        return chatserver_pb2.Response(response='Yeah!')
+##################################################################
     # The stream which will be used to send new messages to clients
     def ChatStream(self, request: global_msg.Group, context):
         """
@@ -35,7 +50,13 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
         print(f"Request for group {request.name}")
         if self.chats.get(request.name, None) == None:
             self.chats[request.name] = []
-        lastindex = 0
+
+        # if self.clients.get(request.user.userName, None) == None:
+        #     group_index = 0 if len(self.chats[request.group.name]) < 1 else len(self.chats[request.group.name]) - 1
+        #     self.clients[request.user.userName] = {request.group.name : group_index}
+
+        lastindex = 0 if len(self.chats[request.name]) == 0 else len(self.chats[request.name])
+
         # For every client a infinite loop starts (in gRPC's own managed thread)
         while True:
             # Check if there are any new messages
@@ -53,12 +74,19 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
         :return:
         """
         # this is only for the server console
-        print("[{}] {} in group {}".format(request.name, request.message, request.group))
+        print(request)
+        print("[{}] {} in group {}".format(request.user.displayName, request.message, request.group.name))
         # Add it to the chat history
-        if self.chats.get(request.group, None) == None:
-            self.chats[request.group] = []
+        if self.chats.get(request.group.name, None) == None:
+            self.chats[request.group.name] = []
 
-        self.chats[request.group].append(request)
+        # if self.clients.get(request.user.userName, None) == None:
+        #     group_index = len(self.chats[request.user.userName])
+        #     self.clients[request.user.userName] = {request.group.name : group_index }
+        # else:
+        #     self.clients[request.user.userName][request.group.name] = len(self.chats[request.group.name])
+
+        self.chats[request.group.name].append(request)
         return global_msg.Empty()  # something needs to be returned required by protobuf language, we just return empty msg
 
 
@@ -98,5 +126,4 @@ if __name__ == '__main__':
     # if we don't wait here the main thread will end, which will end all the child threads, and thus the threads
     # from the server won't continue to work and stop the server
 
-    while True:
-        time.sleep(64 * 64 * 100)
+    server.wait_for_termination()
