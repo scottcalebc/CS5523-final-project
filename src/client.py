@@ -57,6 +57,7 @@ class Client:
 
             date = note.timestamp.ToDatetime()
             self.chat_list.insert(END, "[{} @ {}] {}\n".format(note.user.displayName, date, note.message))  # add the message to the UI
+            self.chat_list.see(END)
 
     def send_message(self, event):
         """
