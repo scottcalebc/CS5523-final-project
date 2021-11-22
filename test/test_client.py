@@ -47,7 +47,7 @@ class Client:
             # ts.FromDatetime(now)
             n.timestamp.FromDatetime(now)
             self.conn.SendNote(n)
-            time.sleep(1)
+            time.sleep(random.uniform(0,1))
 
 
 
