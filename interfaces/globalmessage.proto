@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package chatsystem;
+
+message Empty {}
+
+message User {
+    string userName = 1;
+    string displayName = 2;
+}
+
+message Note {
+    User user = 1;
+    string message = 2;
+    Group group = 3;
+    google.protobuf.Timestamp timestamp = 15;
+}
+
+message Group {
+    string name = 1;
+}
+
+message GroupHistory {
+    User user = 1;
+    Group group=2;
+    google.protobuf.Timestamp beginTime = 3;
+    google.protobuf.Timestamp endTime = 4;
+
+}

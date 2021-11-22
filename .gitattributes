@@ -1,0 +1,18 @@
+# Set default behavior, for users that don't have core.autocrlf set
+* text=auto
+
+# explicity declare text files to normalize in this repo
+*.sh text
+*.py text
+*.md text
+*.txt text
+
+
+# declare files that will always have CRLF endings
+# Example: *.sln text eol=crlf
+
+# declare files that will always have LF endings
+# Example: *.obj text eol=lf
+
+# declare all files that are binary and should not be normalized
+# Example: *.png binary

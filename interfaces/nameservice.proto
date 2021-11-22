@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+import "interfaces/globalmessage.proto";
+
+package chatsystem;
+
+enum ServerStatus {
+    UNKNOWN = 0;
+    OK = 1;
+    NOT_FOUND = 2;
+}
+
+message RegisterServer {
+    string ipAddress = 1;
+    string id = 2;
+    ServerStatus status = 3;
+    int32 port = 4;
+}
+
+
+
+
+service NameServer {
+
+    rpc getChannel(Group) returns (RegisterServer);
+    rpc registerChatServer(RegisterServer) returns (Empty);
+
+}
