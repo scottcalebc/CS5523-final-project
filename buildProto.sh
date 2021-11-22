@@ -122,8 +122,6 @@ case $# in
             "build")
                 # ignore the first two arguments (i.e. the file name and the "build" subcommand)
                 shift
-                echo "Cmd args: ${@}"
-                
                 build_proto "${@}"
                 ;;
             "clean")
