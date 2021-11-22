@@ -51,29 +51,38 @@ build_proto() {
 }
 
 runProgram() {
+    echo "${@:3}"
     prog=$1
     logname="$2.log"
     bg="false"
     num=1
-
+    args=()
     for var in "${@:3}"; do
+        echo "Testing: $var"
         if [[ $var == "-b" ]]; then
             echo "Will run process in background"
             bg="true"
-        elif [[ "$var" =~ "[0-9]+" ]]; then
+            shift
+        elif [[ $var =~ [0-9]+ ]]; then
             echo "Setting number processes to run: $var"
             num=$var
+            shift
+        else
+            echo "Adding $var to args"
+            args+=( $var )
         fi
     done
 
     venv
 
     if [[ $bg == "true" ]]; then
-        echo "Starting $prog in background with log $logname..."
-        python $prog &> $logname &
+        echo "Starting $prog ${args[@]} in background with log $logname..."
+        for i in $(seq 1 $num); do
+            python $prog "${args[@]}"&> $logname &
+        done
     else
-        echo "Running $prog"
-        python "$prog"
+        echo "Running $prog ${args[@]}"
+        python "$prog" "${args[@]}"
     fi
 
     venvleave
@@ -112,9 +121,10 @@ case $# in
     0)
         if [[ "$PYTHONPATH" == *"$proj_path"* ]]; then
             echo "Python path already set for project root"
+            export PYTHONPATH="${PYTHONPATH}"
         else 
             echo "Setting python path for project for easy imports to $proj_path..."
-            PYTHONPATH="${PYTHONPATH}:$proj_path"
+            export PYTHONPATH="${PYTHONPATH}:$proj_path"
         fi
         ;;
     *)
@@ -134,13 +144,18 @@ case $# in
                 fi
                 ;;
             "run")
-                export PYTHONPATH="${PYTHONPATH}:$proj_path"
+                if [[ "$PYTHONPATH" != *"$proj_path"* ]]; then
+                    export PYTHONPATH="${PYTHONPATH}:$proj_path"
+                fi
                 if [[ -f $2 ]]; then
                     name="$(basename $2 | sed -r 's/\..*//')"
                     runProgram $2 $name "${@:3}"
                 else
                     runProgram "src/$2.py" $2 "${@:3}"
                 fi
+                ;;
+            "stop")
+                ps aux | grep $2 | grep -v grep | awk '{print $2}' | xargs kill -9 -- 
                 ;;
             *)
                 usage
