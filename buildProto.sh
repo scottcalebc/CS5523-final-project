@@ -1,6 +1,27 @@
 #!/bin/bash
 
 proj_path=$(pwd)
+py_path="$(which python)"
+pyenvpath=${WORKON_HOME:-"/Users/calebcscott/.virtualenvs"}
+
+venv() {
+    if [[ "$py_path" == "$pyenvpath"* ]]; then
+        return
+    fi
+    
+    echo "Getting virtualenv path: $pyenvpath"
+    pyenv="$(find $pyenvpath -iname "*final*" -depth 1)"
+    echo "Finding project environment: $pyenv"
+
+    source "$pyenv/bin/activate"
+}
+
+venvleave() {
+    if [[ "$py_path" == "$pyenvpath"* ]]; then
+        return
+    fi
+    deactivate
+}
 
 build_proto() {
 
@@ -9,6 +30,8 @@ build_proto() {
     else 
         out_dir="."
     fi
+
+    venv
 
     if [[ -f $1 ]]; then
         echo "Building proto file $1..."
@@ -20,6 +43,8 @@ build_proto() {
             python3 -m grpc_tools.protoc -I. --python_out=$out_dir --grpc_python_out=$out_dir $proto_file
         done
     fi
+
+    venvleave
     echo "Finished building"
 }
 
