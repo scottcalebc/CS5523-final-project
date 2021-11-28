@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-from interfaces import chatserver_pb2 as interfaces_dot_chatserver__pb2
+from interfaces import globalmessage_pb2 as interfaces_dot_globalmessage__pb2
 
 
 class ChatServerStub(object):
@@ -15,14 +15,19 @@ class ChatServerStub(object):
             channel: A grpc.Channel.
         """
         self.ChatStream = channel.unary_stream(
-                '/grpc.ChatServer/ChatStream',
-                request_serializer=interfaces_dot_chatserver__pb2.Group.SerializeToString,
-                response_deserializer=interfaces_dot_chatserver__pb2.Note.FromString,
+                '/chatsystem.ChatServer/ChatStream',
+                request_serializer=interfaces_dot_globalmessage__pb2.Group.SerializeToString,
+                response_deserializer=interfaces_dot_globalmessage__pb2.Note.FromString,
                 )
         self.SendNote = channel.unary_unary(
-                '/grpc.ChatServer/SendNote',
-                request_serializer=interfaces_dot_chatserver__pb2.Note.SerializeToString,
-                response_deserializer=interfaces_dot_chatserver__pb2.Empty.FromString,
+                '/chatsystem.ChatServer/SendNote',
+                request_serializer=interfaces_dot_globalmessage__pb2.Note.SerializeToString,
+                response_deserializer=interfaces_dot_globalmessage__pb2.Empty.FromString,
+                )
+        self.GetHistory = channel.unary_stream(
+                '/chatsystem.ChatServer/GetHistory',
+                request_serializer=interfaces_dot_globalmessage__pb2.GroupHistory.SerializeToString,
+                response_deserializer=interfaces_dot_globalmessage__pb2.Note.FromString,
                 )
 
 
@@ -41,22 +46,33 @@ class ChatServerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetHistory(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ChatServerServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'ChatStream': grpc.unary_stream_rpc_method_handler(
                     servicer.ChatStream,
-                    request_deserializer=interfaces_dot_chatserver__pb2.Group.FromString,
-                    response_serializer=interfaces_dot_chatserver__pb2.Note.SerializeToString,
+                    request_deserializer=interfaces_dot_globalmessage__pb2.Group.FromString,
+                    response_serializer=interfaces_dot_globalmessage__pb2.Note.SerializeToString,
             ),
             'SendNote': grpc.unary_unary_rpc_method_handler(
                     servicer.SendNote,
-                    request_deserializer=interfaces_dot_chatserver__pb2.Note.FromString,
-                    response_serializer=interfaces_dot_chatserver__pb2.Empty.SerializeToString,
+                    request_deserializer=interfaces_dot_globalmessage__pb2.Note.FromString,
+                    response_serializer=interfaces_dot_globalmessage__pb2.Empty.SerializeToString,
+            ),
+            'GetHistory': grpc.unary_stream_rpc_method_handler(
+                    servicer.GetHistory,
+                    request_deserializer=interfaces_dot_globalmessage__pb2.GroupHistory.FromString,
+                    response_serializer=interfaces_dot_globalmessage__pb2.Note.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'grpc.ChatServer', rpc_method_handlers)
+            'chatsystem.ChatServer', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
@@ -75,9 +91,9 @@ class ChatServer(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/grpc.ChatServer/ChatStream',
-            interfaces_dot_chatserver__pb2.Group.SerializeToString,
-            interfaces_dot_chatserver__pb2.Note.FromString,
+        return grpc.experimental.unary_stream(request, target, '/chatsystem.ChatServer/ChatStream',
+            interfaces_dot_globalmessage__pb2.Group.SerializeToString,
+            interfaces_dot_globalmessage__pb2.Note.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -92,8 +108,25 @@ class ChatServer(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/grpc.ChatServer/SendNote',
-            interfaces_dot_chatserver__pb2.Note.SerializeToString,
-            interfaces_dot_chatserver__pb2.Empty.FromString,
+        return grpc.experimental.unary_unary(request, target, '/chatsystem.ChatServer/SendNote',
+            interfaces_dot_globalmessage__pb2.Note.SerializeToString,
+            interfaces_dot_globalmessage__pb2.Empty.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetHistory(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(request, target, '/chatsystem.ChatServer/GetHistory',
+            interfaces_dot_globalmessage__pb2.GroupHistory.SerializeToString,
+            interfaces_dot_globalmessage__pb2.Note.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
