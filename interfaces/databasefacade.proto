@@ -10,6 +10,7 @@ service DatabaseServer {
     rpc UploadMessage (Note) returns (Empty);
     rpc CreateGroup (Group) returns (Empty);
     rpc CreateUser  (Note) returns (Empty);
+    rpc FetchMessages (Group) returns (Note);
 //    rpc ChatStream (Group) returns (stream Note);
 //    rpc SendNote (Note) returns (Empty);
 //
