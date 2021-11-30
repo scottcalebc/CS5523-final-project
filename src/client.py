@@ -72,6 +72,10 @@ class Client:
         self.retry = 0
         self.total_retries = 0
 
+        # messaging lock to prevent queueing / sending of the same message numerous times by
+        #   repeated presses of the enter key
+        self.message_lock = threading.Lock()
+
         # clear events to prevent processing before validating connection status
         self.disconneted_event.clear()
         self.connected_event.clear()
@@ -247,26 +251,38 @@ class Client:
         """
         This method is called when user enters something into the textbox
         """
-        message = self.entry_message.get()  # retrieve message from the UI
+        with self.message_lock:
+            message = self.entry_message.get()  # retrieve message from the UI
+            self.entry_message.configure(state="disabled")
+            value = None # place holder to validate response from server when deleteing UI element text
+            if message != "": # self.connected_event.is_set() and getattr(self.conn, "SendNote", None) != None:
+                n = global_msg.Note()  # create protobug message (called Note)
+                print(n)
+                n.user.userName = self.username  # set the username
+                n.user.displayName = self.username
+                n.message = message  # set the actual message of the note
+                n.group.name = self.group
+                now = datetime.datetime.now()
+                # ts = Timestamp()
+                # ts.FromDatetime(now)
+                n.timestamp.FromDatetime(now)
+                print("S[{} @ {}] {}".format(n.user.displayName, now, n.message))  # debugging statement
 
-        self.connected_event.wait()
-        if message != "" and self.connected_event.is_set() and getattr(self.conn, "SendNote", None) != None:
-            n = global_msg.Note()  # create protobug message (called Note)
-            print(n)
-            n.user.userName = self.username  # set the username
-            n.user.displayName = self.username
-            n.message = message  # set the actual message of the note
-            n.group.name = self.group
-            now = datetime.datetime.now()
-            # ts = Timestamp()
-            # ts.FromDatetime(now)
-            n.timestamp.FromDatetime(now)
-            print("S[{} @ {}] {}".format(n.user.displayName, now, n.message))  # debugging statement
+                # self.conn.SendNote(n)  # send the Note to the server
+                value = None
+                # while value == None and self.connected_event.is_set():
+                while value == None and self.connected_event.is_set():
+                    try:
+                        value = self.__conn_request("SendNote", n)
+                    except grpc.RpcError as e:
+                        status_code = e.code()
 
-            # self.conn.SendNote(n)  # send the Note to the server
-            value = None
-            while value == None:
-                self.__connection_request(self.conn.SendNote, n, "SendNote")
+                        print(f"Received unhandled rpc error from connection request: {status_code}")
+                        break
+            
+            self.entry_message.configure(state="normal")
+            if value != None:
+                self.entry_message.delete(0, tkinter.END)
 
     def __setup_ui(self):
         self.chat_list = tkinter.Text(self.window, highlightthickness=0, state='disabled')
