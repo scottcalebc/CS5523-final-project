@@ -282,31 +282,24 @@ if __name__ == '__main__':
     frame.pack()
     root.withdraw()
     username = None
-    while username is None:
-        # retrieve a username so we can distinguish all the different clients
-        username = simpledialog.askstring("Username", "What's your username?", parent=root)
-        group = simpledialog.askstring("Group", "What group do you want to join?", parent=root)
+    
+    # Remove user username/group loop allows user to leave application early
+    # retrieve a username so we can distinguish all the different clients
+    username = simpledialog.askstring("Username", "What's your username?", parent=root)
+    if username == None:
+        print("Exiting...")
+        os.exit(1)
+    
+    group = simpledialog.askstring("Group", "What group do you want to join?", parent=root)
+    if group == None:
+        print("Exiting...")
+        os.exit(1)
+    
     root.deiconify()  # don't remember why this was needed anymore...
-###I added exit button instead of clicking ctrl+c to exit client##
+
+    # I added exit button instead of clicking ctrl+c to exit client##
     exit_button = Button(root, text="Exit", command=root.destroy)
     exit_button.pack(pady=20)
-
-
-    # first need to get server information
-    # port_ns = 3535
-    # address_ns = 'localhost'
-    # ns = grpc.insecure_channel(address_ns + ':' + str(port_ns))
-    # conn_ns = rpc_ns.NameServerStub(ns)
-
-
-
-    # groupMsg = global_msg.Group()
-    # groupMsg.name = group
-    # chatServer = conn_ns.getChannel(groupMsg)
-
-    # if chatServer.status != 1:
-    #     print("Could not find server disconnecting")
-    #     sys.exit(1)      
 
     # This is to catch the MainExit exception thrown by threads, will block if any threads
     #       are non-daemon 
