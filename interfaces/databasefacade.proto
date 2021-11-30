@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+import "interfaces/globalmessage.proto";
+
+package chatsystem;
+
+
+service DatabaseServer {
+
+    rpc UploadMessage (Note) returns (Empty);
+    rpc CreateGroup (Note) returns (Empty);
+    rpc CreateUser  (User) returns (Empty);
+    rpc FetchMessages (Group) returns (Note);
+
+}
