@@ -26,42 +26,45 @@ import interfaces.databasefacade_pb2_grpc as rpc
 class DatabaseServer(rpc.DatabaseServerServicer):
 
     def UploadMessage(self, request: global_msg.Note, context):
+        print("Uploading messages")
         #create refence to database document, ref will generate new document with a UID
         ref = db.collection('Messages').document()
         print(request)
         messageID = ref.id
         data = {'messageID': messageID,
-                'username': request.name,
+                'username': request.user.displayName,
                 'message': request.message,
-                'groupName': request.group }
+                'groupName': request.group.name,
+                'timestamp': request.timestamp}
         ref.set(data)
-        print("Uploading messages")
         return global_msg.Empty()
 
     def CreateUser(self, request: global_msg.Note, context):
+        print("Creating user")
         #create refence to database document, ref will generate new document with a UID
         ref = db.collection('Users').document()
         print(request)
-        print("[{}] {} in group {}".format(request.user.displayName, request.message, request.group.name))
         userUID = ref.id
-        data = {'username': request.name,
+        data = {'username': request.user.username,
+                'displayName': request.user.displayName,
                 'uid': userUID}
         ref.set(data)
         return global_msg.Empty()
 
     def CreateGroup(self, request: global_msg.Group, context):
+        print("Uploading group")
         #create groups collection and store group under store with firebase generated UID, store group name under the uid
         ref = db.collection('Groups').document()
         print(request)
-        print("[{}] {} in group {}".format(request.user.displayName, request.message, request.group.name))
         groupID = ref.id
-        data = {'groupName': request.name,
+        data = {'groupName': request.group.name,
                 'id': groupID}
         ref.set(data)
         return global_msg.Empty()
 
     def FetchMessagesByGroup(self, request: global_msg.Group, context):
-        docs = db.collection('Messages').where("groupName", "==", request.name).get()
+        print("Fetching group messages")
+        docs = db.collection('Messages').where("groupName", "==", request.group.name).get()
         for doc in docs:
             print(doc.to_dict())
         return global_msg.Note()
@@ -82,16 +85,5 @@ if __name__ == '__main__':
     ns = grpc.insecure_channel(address_ns + ":" + str(port_ns))
     conn_ns = ns_rpc.NameServerStub(ns)
 
-    registerMessage = ns_msg.RegisterServer()
-    registerMessage.ipAddress = helper_funcs.get_ip()
-    registerMessage.id = "1234"
-    registerMessage.port = port
-    print(registerMessage.ipAddress)
-
-    g = global_msg.Group()
-    g.name = "all"
-    conn_ns.getChannel(g)
-
-    conn_ns.registerChatServer(registerMessage)
-
     server.start()
+    server.wait_for_termination()
