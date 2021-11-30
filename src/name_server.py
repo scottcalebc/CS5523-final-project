@@ -35,8 +35,33 @@ class NameServer(rpc.NameServerServicer):
         return sys
 
     def registerChatServer(self, request: msg.RegisterServer, context):
+        if not request.IsInitialized():
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Fields missing from message")
+        
+        if len(request.ipAddress) == 0 or request.port == 0:
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Cannot contain empty ip address or port")
+
+        identical_list = list(filter(lambda x: x.ipAddress == request.ipAddress and x.port == request.port, self.server_ips))
+        same_ids = list(filter(lambda x: x.id == request.id, identical_list))
+        if len(identical_list) > 0 and len(identical_list) != len(same_ids):
+            context.abort(grpc.StatusCode.ALREADY_EXISTS, "Object with that address and port already exist on system")
+
+        same_ids = list(filter(lambda x: x.id == request.id, self.server_ips))
+        if len(same_ids) > 1:
+            for x in same_ids:
+                self.server_ips.pop(self.server_ips.index(same_ids))
+            context.abort(grpc.StatusCode.OUT_OF_RANGE, "Error multiple servers with same ID clearing out all servers")
+            
+        if len(same_ids) == 1:
+            self.server_ips.pop(self.server_ips.index(same_ids[0]))
+
         print(f"{self.comp_name} : Registering server at {request.ipAddress}")
+
+
         self.server_ips.append(request)
+
+
+        print(f"All chatservers: {self.server_ips}")
 
         return global_msg.Empty()
 
@@ -60,10 +85,9 @@ if __name__ == '__main__':
     rpc.add_NameServerServicer_to_server(NameServer(), server)
 
     print("Starting server. Listening...")
-    server.add_insecure_port('[::]:' + str(port))
+    server.add_insecure_port('127.0.0.1:' + str(port))
     server.start()
 
-    while True:
-        time.sleep(64*64*100)
+    server.wait_for_termination()
 
 

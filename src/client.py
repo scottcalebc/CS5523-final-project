@@ -145,17 +145,18 @@ class Client:
         while True:
             self.disconneted_event.wait(timeout=MAX_TIMEOUT)
             if self.disconneted_event.is_set():
-                self.__get_ChatServer()
+                chatServer = self.__get_ChatServer()
 
                 print(f"Total retries = {self.total_retries}")
                 if self.total_retries > MAX_RETRIES:
                     self.chat_write(f"Unable to get valid connection to Chat Server from name server. Quiting program...")
-                    time.sleep(10)
+                    time.sleep(100)
                     os.kill(os.getpid(), signal.SIGUSR1)
 
                 self.chat_write("Disconneted from Server. Attempting to reconnect...\n")
 
                 with self.connection_lock:
+                    self.chatServer = chatServer
                     self.channel = grpc.insecure_channel(self.chatServer.ipAddress + ':' + str(self.chatServer.port))
                     self.conn = rpc.ChatServerStub(self.channel)
                 
@@ -438,4 +439,5 @@ if __name__ == '__main__':
     try:
         c = Client(username, group, frame, root)  
     except MainExit:
+        print("Reveived an exit signal from either main or worker thread")
         pass
