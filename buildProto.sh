@@ -75,7 +75,7 @@ runProgram() {
 
     venv
 
-    if [[ $bg == "true" ]]; then
+    if [[ $bg == "true" || num -gt 1 ]]; then
         echo "Starting $prog ${args[@]} in background with log $logname..."
         for i in $(seq 1 $num); do
             python $prog "${args[@]}"&> $logname &
@@ -98,7 +98,13 @@ usage() {
     echo "              proto_directory - Directory containin all proto files you want to compile"
     echo "              proto_file - Path and name of proto file you wish to copmile"
     echo "              out_directory - Directory where all compiled python files will be generated"
-    echo "      run (path_to_file|name) [[num_of_process] [-b]]"
+    echo "      run (path_to_file|name) [[num_of_process] [-b]] [[arg1] [arg2] ... [argN]]"
+    echo "          Args:"
+    echo "              path_to_file - file with path that should be run"
+    echo "              name - name of standard chat components (i.e. name_server, server, client, database)"
+    echo "              num_of_process - number of processes to spawn with component (implicitly signals background)"
+    echo "              -b (background) - starts the request component in the background"
+    echo "              args - arguments that need to be passed to the program"
     echo "      clean (directory)"
     echo "          Args:"
     echo "              directory - Directory containing all generated python files you want to remove"
