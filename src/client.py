@@ -247,7 +247,7 @@ class Client:
         self.chat_list.see(tkinter.END)
         self.chat_list.configure(state='disabled')
 
-    def send_message(self, event):
+    def send_message(self):
         """
         This method is called when user enters something into the textbox
         """
@@ -283,6 +283,12 @@ class Client:
             self.entry_message.configure(state="normal")
             if value != None:
                 self.entry_message.delete(0, tkinter.END)
+    
+    # message wrapper to spawn worker thread to not block UI elements
+    # should only spawn 1 thread since the worker thread will disable the entry_message UI object
+    #       preventing the user from triggering the bound event
+    def __send_message_wrapper(self, event):
+        threading.Thread(name="Send Message",target=self.send_message, daemon=True).start()
 
     def __setup_ui(self):
         self.chat_list = tkinter.Text(self.window, highlightthickness=0, state='disabled')
