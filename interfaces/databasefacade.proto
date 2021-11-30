@@ -9,7 +9,7 @@ service DatabaseServer {
 
     rpc UploadMessage (Note) returns (Empty);
     rpc CreateGroup (Note) returns (Empty);
-    rpc CreateUser  (Note) returns (Empty);
+    rpc CreateUser  (User) returns (Empty);
     rpc FetchMessages (Group) returns (Note);
 
 }

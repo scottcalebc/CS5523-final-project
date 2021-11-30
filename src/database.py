@@ -83,7 +83,6 @@ class DatabaseServer(rpc.DatabaseServerServicer):
 
 
 
-
 if __name__ == '__main__':
     port = 11864  # a random port for the server to run on
     # the workers is like the amount of threads that can be opened at the same time, when there are 10 clients connected
@@ -99,6 +98,8 @@ if __name__ == '__main__':
     address_ns = '127.0.0.1'
     ns = grpc.insecure_channel(address_ns + ":" + str(port_ns))
     conn_ns = ns_rpc.NameServerStub(ns)
+
+
 
     server.start()
     server.wait_for_termination()
