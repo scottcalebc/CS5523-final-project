@@ -4,8 +4,10 @@ import signal
 import threading
 
 # gui packages
-from tkinter import *
+import tkinter
 from tkinter import simpledialog
+from tkinter import messagebox
+
 
 # utility packages
 import sys
@@ -235,8 +237,8 @@ class Client:
                         self.chat_write("[{} @ {}] {}\n".format(note.user.displayName, date, note.message))
 
     def chat_write(self, msg):
-        self.chat_list.insert(END, msg)
-        self.chat_list.see(END)
+        self.chat_list.insert(tkinter.END, msg)
+        self.chat_list.see(tkinter.END)
 
     def send_message(self, event):
         """
@@ -264,41 +266,77 @@ class Client:
                 self.__connection_request(self.conn.SendNote, n, "SendNote")
 
     def __setup_ui(self):
-        self.chat_list = Text()
-        self.chat_list.pack(side=TOP)
-        self.lbl_username = Label(self.window, text=self.username)
-        self.lbl_username.pack(side=LEFT)
-        self.entry_message = Entry(self.window, bd=5)
+        self.chat_list = tkinter.Text()
+        self.chat_list.pack(side=tkinter.TOP)
+        self.lbl_username = tkinter.Label(self.window, text=self.username)
+        self.lbl_username.pack(side=tkinter.LEFT)
+        self.entry_message = tkinter.Entry(self.window, bd=5)
         self.entry_message.bind('<Return>', self.send_message)
         self.entry_message.focus()
-        self.entry_message.pack(side=BOTTOM)
+        self.entry_message.pack(side=tkinter.BOTTOM)
 ####################################connection errors#######
 
+
+
 ############################################################
+
+def getAccountAndGroup(root):
+    confirm = True
+    username = None
+    group = None
+
+    while confirm:
+        username = simpledialog.askstring("Username", "What's your username?", parent=root)
+        if username == None:
+            confirm = messagebox.askquestion(title="cdsRpc", message="Do you want to quit?")
+
+            if confirm == "yes":
+                sys.exit(1)
+            else:
+                confirm = True
+        else:
+            break
+                
+    while confirm:
+        group = simpledialog.askstring("Group", "What group do you want to join?", parent=root)
+        if group == None:
+            confirm = messagebox.askquestion(title="cdsRpc", message="Do you want to quit?")
+            if confirm == "yes":
+                sys.exit(1)
+            else:
+                confirm = True
+        else:
+            break
+
+    
+    return username, group
+
+
 if __name__ == '__main__':
     print(f"open is assigned to {open}")
-    root = Tk()  # I just used a very simple Tk window for the chat UI, this can be replaced by anything
-    frame = Frame(root, width=300, height=300)
+    root = tkinter.Tk()  # I just used a very simple Tk window for the chat UI, this can be replaced by anything
+    frame = tkinter.Frame(root, width=300, height=300)
     frame.pack()
     root.withdraw()
     username = None
     
+    username, group = getAccountAndGroup(root)
     # Remove user username/group loop allows user to leave application early
     # retrieve a username so we can distinguish all the different clients
-    username = simpledialog.askstring("Username", "What's your username?", parent=root)
-    if username == None:
-        print("Exiting...")
-        os.exit(1)
+    # username = simpledialog.askstring("Username", "What's your username?", parent=root)
+    # if username == None:
+    #     print("Exiting...")
+    #     os.exit(1)
     
-    group = simpledialog.askstring("Group", "What group do you want to join?", parent=root)
-    if group == None:
-        print("Exiting...")
-        os.exit(1)
+    # group = simpledialog.askstring("Group", "What group do you want to join?", parent=root)
+    # if group == None:
+    #     print("Exiting...")
+    #     os.exit(1)
     
     root.deiconify()  # don't remember why this was needed anymore...
 
     # I added exit button instead of clicking ctrl+c to exit client##
-    exit_button = Button(root, text="Exit", command=root.destroy)
+    exit_button = tkinter.Button(root, text="Exit", command=root.destroy)
     exit_button.pack(pady=20)
 
     # This is to catch the MainExit exception thrown by threads, will block if any threads
