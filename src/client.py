@@ -42,13 +42,14 @@ def signal_handler(signal, frame):
 
 class Client:
 
-    def __init__(self, u: str, g: str, window):
+    def __init__(self, u: str, g: str, window, root):
 
         # main setup first before setting up rpc
         self.username = u
         self.group = g
 
         # the frame to put ui components on
+        self.root = root
         self.window = window 
         self.__setup_ui()
 
@@ -237,8 +238,10 @@ class Client:
                         self.chat_write("[{} @ {}] {}\n".format(note.user.displayName, date, note.message))
 
     def chat_write(self, msg):
+        self.chat_list.configure(state='normal')
         self.chat_list.insert(tkinter.END, msg)
         self.chat_list.see(tkinter.END)
+        self.chat_list.configure(state='disabled')
 
     def send_message(self, event):
         """
@@ -266,14 +269,24 @@ class Client:
                 self.__connection_request(self.conn.SendNote, n, "SendNote")
 
     def __setup_ui(self):
-        self.chat_list = tkinter.Text()
-        self.chat_list.pack(side=tkinter.TOP)
-        self.lbl_username = tkinter.Label(self.window, text=self.username)
-        self.lbl_username.pack(side=tkinter.LEFT)
-        self.entry_message = tkinter.Entry(self.window, bd=5)
-        self.entry_message.bind('<Return>', self.send_message)
+        self.chat_list = tkinter.Text(self.window, highlightthickness=0, state='disabled')
+        self.chat_list.pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=True)
+        
+        # frame to hold three widgets side-by-side
+        frame = tkinter.Frame(self.window)
+        frame.pack(side=tkinter.BOTTOM)
+        self.lbl_username = tkinter.Label(frame, text=self.username, highlightthickness=0)
+        self.lbl_username.pack(side=tkinter.LEFT, padx=5)
+        self.entry_message = tkinter.Entry(frame, bd=5)
+        self.entry_message.bind('<Return>', self.__send_message_wrapper)
         self.entry_message.focus()
-        self.entry_message.pack(side=tkinter.BOTTOM)
+        self.entry_message.pack(side=tkinter.LEFT, padx=5)
+
+        # I added exit button instead of clicking ctrl+c to exit client##
+        self.exit_button = tkinter.Button(frame, text="Quit", command=self.root.destroy)
+        self.exit_button.pack(side=tkinter.LEFT, padx=5)
+
+        
 ####################################connection errors#######
 
 
@@ -335,13 +348,9 @@ if __name__ == '__main__':
     
     root.deiconify()  # don't remember why this was needed anymore...
 
-    # I added exit button instead of clicking ctrl+c to exit client##
-    exit_button = tkinter.Button(root, text="Exit", command=root.destroy)
-    exit_button.pack(pady=20)
-
     # This is to catch the MainExit exception thrown by threads, will block if any threads
     #       are non-daemon 
     try:
-        c = Client(username, group, frame)  
+        c = Client(username, group, frame, root)  
     except MainExit:
         pass
