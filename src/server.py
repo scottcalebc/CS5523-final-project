@@ -2,6 +2,8 @@ from concurrent import futures
 
 import grpc
 import time
+import uuid
+import argparse
 
 import helper_funcs
 
@@ -90,8 +92,26 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
         return global_msg.Empty()  # something needs to be returned required by protobuf language, we just return empty msg
 
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Chat Server for the distributed chat system")
+
+    parser.add_argument("--port", action="store", type=int)
+    parser.add_argument("--id", action="store", type=str)
+
+    return parser.parse_args()
+    
 if __name__ == '__main__':
-    port = 11912  # a random port for the server to run on
+    port = 11915  # a random port for the server to run on
+    id = str(uuid.uuid4())
+
+    args = parse_args()
+
+    if args.port != None:
+        port = args.port
+    
+    if args.id != None:
+        id = args.id
     # the workers is like the amount of threads that can be opened at the same time, when there are 10 clients connected
     # then no more clients able to connect to the server.
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=100))  # create a gRPC server
@@ -109,16 +129,10 @@ if __name__ == '__main__':
 
     registerMessage = ns_msg.RegisterServer()
     registerMessage.ipAddress = helper_funcs.get_ip()
-    registerMessage.id = "1234"
+    registerMessage.id = id
     registerMessage.port = port
-    print(registerMessage.ipAddress)
-
-    g = global_msg.Group()
-    g.name = "all"
-    conn_ns.getChannel(g)
 
     conn_ns.registerChatServer(registerMessage)
-
 
     server.start()
 
