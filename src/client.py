@@ -69,6 +69,9 @@ class Client:
         self.channel = grpc.insecure_channel(self.chatServer.ipAddress + ':' + str(self.chatServer.port))
         self.channel.subscribe(self.__channel_connection_monitor)
         self.conn = rpc.ChatServerStub(self.channel)
+
+        # retry lock (retries can happen outside of the conn_request method)
+        self.retry_lock = threading.Lock()
         self.retry = 0
         self.total_retries = 0
 
@@ -90,50 +93,6 @@ class Client:
         # if receiving exception from signal will be handled outsie of Client class
         self.window.mainloop()
 
-
-    def __connection_request(self, func, parameter, name=None):
-        self.connected_event.wait(timeout=MAX_TIMEOUT)
-        if self.connected_event.is_set():
-            with self.connection_lock:
-                try:
-
-                    retValue = func(parameter)
-
-                    # validate calling code should work on return value object
-                    # this will ensure multithreaded objects like stream iterators are accessed before
-                    # passing back to user code and will throw exceptions here
-                    if retValue.code():
-                        self.total_retries = 0
-                        return retValue
-                    else:
-                        return None
-                    
-
-                except grpc.RpcError as e:
-                    # collect status code from rpc server
-                    status_code = e.code()
-                    print(f"Handling Exception during rpc call {name} for {status_code}")
-                    
-
-                    if (status_code == grpc.StatusCode.UNAVAILABLE or 
-                        status_code == grpc.StatusCode.DEADLINE_EXCEEDED or
-                        status_code == grpc.StatusCode.UNKNOWN):
-                        if self.retry > MAX_RETRIES:
-                            self.connected_event.clear()
-                            self.disconneted_event.set()
-                        else:
-                            self.retry = self.retry + 1
-                    elif (status_code == grpc.StatusCode.INTERNAL):
-                        self.chat_write("Internal Error from rpc connection, restart application")
-                        time.sleep(5)
-                        os.kill(os.getpid(), signal.SIGUSR1)
-                    else:
-                        print(f"Recevied unhandled connection error {e}")
-                        print(f"Received code from error {status_code}")
-                        raise e
-        # should be hit
-        return None
-
     def __get_ChatServer(self):
         port_ns = 3535
         address_ns = 'localhost'
@@ -143,11 +102,11 @@ class Client:
         groupMsg = global_msg.Group()
         groupMsg.name = self.group    
         retry = 0
-        while retry < MAX_RETRIES:
+        while retry <= MAX_RETRIES:
             try:
                 print("Attempting to connect to name server")
                 chatServer = conn_ns.getChannel(groupMsg)
-                print(f"Received from Name Server: {chatServer}")
+                print(f"Received from Name Server:\n {chatServer}")
                 if chatServer.status == -1:
                     raise MainExit
 
@@ -170,6 +129,7 @@ class Client:
     def __channel_connection_monitor(self, chan_conn):
         if (chan_conn == grpc.ChannelConnectivity.IDLE or
             chan_conn == grpc.ChannelConnectivity.READY):
+            print("Connection Ready signalling event, resetting total retries")
             self.disconneted_event.clear()
             self.connected_event.set()
             self.total_retries = 0
@@ -178,6 +138,7 @@ class Client:
                 chan_conn == grpc.ChannelConnectivity.SHUTDOWN):
             self.connected_event.clear()
             self.disconneted_event.set()
+            print("Disconnected signalling event to threads...")
             
 
     def __connectionMgr(self):
@@ -188,18 +149,75 @@ class Client:
 
                 print(f"Total retries = {self.total_retries}")
                 if self.total_retries > MAX_RETRIES:
+                    self.chat_write(f"Unable to get valid connection to Chat Server from name server. Quiting program...")
+                    time.sleep(10)
                     os.kill(os.getpid(), signal.SIGUSR1)
 
+                self.chat_write("Disconneted from Server. Attempting to reconnect...\n")
+
                 with self.connection_lock:
-                    self.chat_write("Disconneted from Server. Attempting to reconnect...\n")
                     self.channel = grpc.insecure_channel(self.chatServer.ipAddress + ':' + str(self.chatServer.port))
                     self.conn = rpc.ChatServerStub(self.channel)
-                    self.retry = 0
-                    self.total_retries = self.total_retries + 1
-                    print(f"Incrementing connection retries in a row {self.total_retries}")
+                
                     self.disconneted_event.clear()
-                    self.connected_event.set()
 
+                    # need to keep retry lock under connection lock because of order precedence
+                    with self.retry_lock:
+                        self.retry = 0
+                        self.total_retries = self.total_retries + 1
+                        print(f"Incrementing connection retries in a row {self.total_retries}")
+                    
+                    self.connected_event.set()
+                
+
+
+    def __conn_request(self, funcName, param, default=None):
+        # while loop to hold onto retry test in event multiple retires occured
+        while True:
+            self.connected_event.wait()
+            if self.connected_event.is_set():
+                with self.connection_lock:
+                    try:
+                        if getattr(self.conn, funcName, None) == None:
+                            raise grpc.RpcError(grpc.StatusCode.UNIMPLEMENTED, f"Function ({funcName}) not avilable on server")
+                        func = getattr(self.conn, funcName)
+
+                        value = func(param)
+
+                        print(f"Received type ({type(value)}) and value: {value}")
+
+                        return value
+
+                    except grpc.RpcError as e:
+                        status_code = e.code()
+                        print(f"Received error on rpc handle ({funcName}) with status: {status_code}")
+
+                        # could be some transient or fatal error of server attempt at most MAX_RETRIES
+                        if (status_code == grpc.StatusCode.UNAVAILABLE or 
+                                status_code == grpc.StatusCode.DEADLINE_EXCEEDED or
+                                status_code == grpc.StatusCode.UNKNOWN):
+                                print(f"Possible Transient connection issue with chatserver attempting to retry requests")
+
+                                with self.retry_lock:
+                                    self.retry = self.retry + 1
+
+                                    # if most retries set, clear connected flag and set disconnected to signal
+                                    # connection mgr to re-establish connection with chatserver through name server
+                                    # this could mean a crash/fatal fault on chatserver
+                                    if self.retry > MAX_RETRIES:
+                                        self.connected_event.clear()
+                                        self.disconneted_event.set()
+
+                        # some internal error cannot be handled, close program      
+                        if (status_code == grpc.StatusCode.INTERNAL):
+                                self.chat_write("Internal Error from rpc connection, restart application")
+                                time.sleep(5)
+                                os.kill(os.getpid(), signal.SIGUSR1)
+
+                    
+                    return default
+
+        
 
     def __test_GetHistory(self):
         
@@ -209,9 +227,15 @@ class Client:
         hist.group.name = self.group
         print("Testing GetHistory")
         # resp = self.conn.GetHistory(hist)
-        resp = self.__connection_request(self.conn.GetHistory, hist, "GetHistory")
-        if resp != None:
-            print(resp.details())
+        try:
+            resp = self.__conn_request("GetHistory", hist)
+        except grpc.RpcError as e:
+            status_code = e.code()
+
+            if status_code == grpc.StatusCode.UNIMPLEMENTED:
+                print("Error history unavailable")
+                print(e.details())
+        
 
     
     
@@ -224,22 +248,61 @@ class Client:
         g.name = self.group
 
         while True:
-            # self.connected_event.wait(timeout=MAX_TIMEOUT)
-            if self.connected_event.is_set():
-                # self.conn.ChatStream(g)
-                try:
-                    chat_iter = self.__connection_request(self.conn.ChatStream, g, "ChatStream")
-                            # self.chat_list.insert(END, "[{} @ {}] {}\n".format(note.user.displayName, date, note.message))  # add the message to the UI
-                    # self.chat_list.see(END)
-                except grpc.RpcError:
-                    chat_iter = iter(())
-                if chat_iter == None:
-                    continue
-                for note in chat_iter:  # this line will wait for new messages from the server!
-                        print(note)
-                        print("R[{}] {}".format(note.user.displayName, note.message))  # debugging statement
-                        date = note.timestamp.ToDatetime()
-                        self.chat_write("[{} @ {}] {}\n".format(note.user.displayName, date, note.message))
+            # need surronding try catch in event that iterator object returns rpc error since
+            #   rpc request is streaming 
+            try:
+                # processing loop of streaming request
+                for note in self.__conn_request("ChatStream", g, default=iter(()) ):
+                    print("R[{}] {}".format(note.user.displayName, note.message))  # debugging statement
+                    date = note.timestamp.ToDatetime()
+                    self.chat_write("[{} @ {}] {}\n".format(note.user.displayName, date, note.message))
+
+            except grpc.RpcError as e:
+                status_code = e.code()
+
+                # could be some transient or fatal error of server attempt at most MAX_RETRIES
+                if (status_code == grpc.StatusCode.UNAVAILABLE or 
+                        status_code == grpc.StatusCode.DEADLINE_EXCEEDED or
+                        status_code == grpc.StatusCode.UNKNOWN):
+
+                        with self.connection_lock:
+                            with self.retry_lock:
+                                print(f"Possible Transient connection issue with chatserver attempting to retry requests ({self.retry})")
+
+                    
+                                self.retry = self.retry + 1
+
+                                # if most retries set, clear connected flag and set disconnected to signal
+                                # connection mgr to re-establish connection with chatserver through name server
+                                # this could mean a crash/fatal fault on chatserver
+                                if self.retry > MAX_RETRIES:
+                                    self.connected_event.clear()
+                                    self.disconneted_event.set()
+
+                # some internal error cannot be handled, close program      
+                if (status_code == grpc.StatusCode.INTERNAL):
+                        self.chat_write("Internal Error from rpc connection, restart application")
+                        time.sleep(5)
+                        os.kill(os.getpid(), signal.SIGUSR1)
+
+
+        # while True:
+        #     self.connected_event.wait(timeout=MAX_TIMEOUT)
+        #     if self.connected_event.is_set():
+        #         # try:
+        #         #     print("Attempting to get stream iterator")
+        #         #     chat_iter = self.__connection_request(self.conn.ChatStream, g, "ChatStream")
+        #         #     print(f"Received iter: {chat_iter}")
+        #         # except grpc.RpcError:
+        #         #     chat_iter = iter(())
+        #         # if chat_iter == None:
+        #         #     continue
+
+        #         for note in self.__connection_request(self.conn.ChatStream, g, "ChatStream"):  # this line will wait for new messages from the server!
+        #                 print(note)
+        #                 print("R[{}] {}".format(note.user.displayName, note.message))  # debugging statement
+        #                 date = note.timestamp.ToDatetime()
+        #                 self.chat_write("[{} @ {}] {}\n".format(note.user.displayName, date, note.message))
 
     def chat_write(self, msg):
         self.chat_list.configure(state='normal')
