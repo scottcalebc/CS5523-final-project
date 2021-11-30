@@ -1,7 +1,10 @@
 from concurrent import futures
 import grpc
 import time
+import sys
 import helper_funcs
+import datetime
+from google.protobuf.timestamp_pb2 import Timestamp
 import interfaces.globalmessage_pb2 as global_msg
 import interfaces.nameservice_pb2 as ns_msg
 import interfaces.nameservice_pb2_grpc as ns_rpc
@@ -26,59 +29,60 @@ class DatabaseServer(rpc.DatabaseServerServicer):
                 'username': request.user.displayName,
                 'message': request.message,
                 'groupName': request.group.name,
-                'timestamp': request.timestamp}
+                'timestamp': datetime.datetime.now()
+                }
+
         ref.set(data)
         return global_msg.Empty()
 
 
     def CreateUser(self, request: global_msg.User, context):
-        print("Creating user")
         #create refence to database document, ref will generate new document with a UID
-        checkDatabaseRef = db.collection('Users').where("username", "==", request.username).get()
-        # if username is already in database, then don't create user, else create user and upload data
-        if checkDatabaseRef.exists:
+        checkDatabaseRef = db.collection('Users').document(request.userName)
+        doc = checkDatabaseRef.get()
+        # # if username is already in database, then don't create user, else create user and upload data
+        if doc.exists:
             print('Username is already in database')
         else:
-            ref = db.collection('Users').document()
-            userUID = ref.id
-            data = {'username': request.username,
-                    'displayName': request.displayName,
-                    'uid': userUID}
+            ref = db.collection('Users').document(request.userName)
+            data = {'username': request.userName,
+                    'displayName': request.displayName
+                   }
             ref.set(data)
+            print("User has been created")
         return global_msg.Empty()
 
 
     def CreateGroup(self, request: global_msg.Note, context):
-        print("Uploading group")
         #create groups collection and store group under store with firebase generated UID, store group name under the uid
-        checkGroupDatabaseRef = db.collection('Groups').where("groupName", "==", request.group.name).get()
-        ref = db.collection('Groups').document()
-        groupID = ref.id
+        checkGroupDatabaseRef = db.collection('Groups').document(request.group.name)
+        doc = checkGroupDatabaseRef.get()
         #if name is already in database, then don't create a new group, else create group and uplaod data
-        if checkGroupDatabaseRef.exists:
+        if doc.exists:
             print('Group name is already in database')
         else:
             #create reference to users-in-group collections
-            data = {'groupName': request.group.name,
-                    'id': groupID}
-
-            ref.set(data)
-
+            ref = db.collection('Groups').document(request.group.name)
+            ref.set([])
+            print("Uploading group")
         #check if user is already stored in users-in-group collections
-        checkUserDatabaseRef = db.collection('Groups').document(groupID).collection('users-in-group').where("username", "==", request.user.username).get()
-        if checkUserDatabaseRef.exists:
+        checkUserDatabaseRef = db.collection('Groups').document(request.group.name).collection('users-in-group').document(request.user.userName)
+        doc2 = checkUserDatabaseRef.get()
+        if doc2.exists:
             print('User is already in this group')
         else:
-            ref2 = db.collection('Groups').document(groupID).collection('users-in-group').document(request.user.username)
+            ref2 = db.collection('Groups').document(request.group.name).collection('users-in-group').document(request.user.userName)
             ref2.set([])
+            print("Adding user to group")
         return global_msg.Empty()
 
 
     def FetchMessagesByGroup(self, request: global_msg.Group, context):
         print("Fetching group messages")
-        docs = db.collection('Messages').where("groupName", "==", request.group.name).get()
+        docs = db.collection('Messages').where("groupName", "==", request.name).get()
         for doc in docs:
             print(doc.to_dict())
+        print("Done fetching messages")
         return global_msg.Note()
 
 
@@ -98,8 +102,6 @@ if __name__ == '__main__':
     address_ns = '127.0.0.1'
     ns = grpc.insecure_channel(address_ns + ":" + str(port_ns))
     conn_ns = ns_rpc.NameServerStub(ns)
-
-
 
     server.start()
     server.wait_for_termination()
