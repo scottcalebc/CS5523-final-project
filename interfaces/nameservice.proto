@@ -22,7 +22,15 @@ message RegisterServer {
 
 service NameServer {
 
+    // keeping client and server interfaces in same service
+    // should modify to have separate services for clients and services
+
+    // client interfaces
     rpc getChannel(Group) returns (RegisterServer);
+    rpc notifyDisconnect(RegisterServer) returns (Empty);
+
+    // server interfaces
     rpc registerChatServer(RegisterServer) returns (Empty);
+    
 
 }
