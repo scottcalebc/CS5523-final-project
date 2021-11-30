@@ -1,26 +1,17 @@
 from concurrent import futures
-
+import grpc
+import time
+import helper_funcs
+import interfaces.globalmessage_pb2 as global_msg
+import interfaces.nameservice_pb2 as ns_msg
+import interfaces.nameservice_pb2_grpc as ns_rpc
+import interfaces.databasefacade_pb2_grpc as rpc
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
-
-
 cred = credentials.Certificate('serviceAccountKey.json')
 firebase_admin.initialize_app(cred)
-
 db = firestore.client()
-
-import grpc
-import time
-
-import helper_funcs
-
-import interfaces.globalmessage_pb2 as global_msg
-
-import interfaces.nameservice_pb2 as ns_msg
-import interfaces.nameservice_pb2_grpc as ns_rpc
-
-import interfaces.databasefacade_pb2_grpc as rpc
 
 
 class DatabaseServer(rpc.DatabaseServerServicer):
@@ -39,28 +30,49 @@ class DatabaseServer(rpc.DatabaseServerServicer):
         ref.set(data)
         return global_msg.Empty()
 
-    def CreateUser(self, request: global_msg.Note, context):
+
+    def CreateUser(self, request: global_msg.User, context):
         print("Creating user")
         #create refence to database document, ref will generate new document with a UID
-        ref = db.collection('Users').document()
-        print(request)
-        userUID = ref.id
-        data = {'username': request.user.username,
-                'displayName': request.user.displayName,
-                'uid': userUID}
-        ref.set(data)
+        checkDatabaseRef = db.collection('Users').where("username", "==", request.username).get()
+        # if username is already in database, then don't create user, else create user and upload data
+        if checkDatabaseRef.exists:
+            print('Username is already in database')
+        else:
+            ref = db.collection('Users').document()
+            userUID = ref.id
+            data = {'username': request.username,
+                    'displayName': request.displayName,
+                    'uid': userUID}
+            ref.set(data)
         return global_msg.Empty()
 
-    def CreateGroup(self, request: global_msg.Group, context):
+
+    def CreateGroup(self, request: global_msg.Note, context):
         print("Uploading group")
         #create groups collection and store group under store with firebase generated UID, store group name under the uid
+        checkGroupDatabaseRef = db.collection('Groups').where("groupName", "==", request.group.name).get()
         ref = db.collection('Groups').document()
-        print(request)
         groupID = ref.id
-        data = {'groupName': request.group.name,
-                'id': groupID}
-        ref.set(data)
+        #if name is already in database, then don't create a new group, else create group and uplaod data
+        if checkGroupDatabaseRef.exists:
+            print('Group name is already in database')
+        else:
+            #create reference to users-in-group collections
+            data = {'groupName': request.group.name,
+                    'id': groupID}
+
+            ref.set(data)
+
+        #check if user is already stored in users-in-group collections
+        checkUserDatabaseRef = db.collection('Groups').document(groupID).collection('users-in-group').where("username", "==", request.user.username).get()
+        if checkUserDatabaseRef.exists:
+            print('User is already in this group')
+        else:
+            ref2 = db.collection('Groups').document(groupID).collection('users-in-group').document(request.user.username)
+            ref2.set([])
         return global_msg.Empty()
+
 
     def FetchMessagesByGroup(self, request: global_msg.Group, context):
         print("Fetching group messages")
@@ -68,6 +80,9 @@ class DatabaseServer(rpc.DatabaseServerServicer):
         for doc in docs:
             print(doc.to_dict())
         return global_msg.Note()
+
+
+
 
 if __name__ == '__main__':
     port = 11864  # a random port for the server to run on
