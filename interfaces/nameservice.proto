@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "interfaces/globalmessage.proto";
+import "google/protobuf/timestamp.proto";
 
 package chatsystem;
 
@@ -15,6 +16,7 @@ message RegisterServer {
     string id = 2;
     ServerStatus status = 3;
     int32 port = 4;
+    google.protobuf.Timestamp  timestamp = 15;
 }
 
 
@@ -22,7 +24,15 @@ message RegisterServer {
 
 service NameServer {
 
+    // keeping client and server interfaces in same service
+    // should modify to have separate services for clients and services
+
+    // client interfaces
     rpc getChannel(Group) returns (RegisterServer);
+    rpc notifyDisconnect(RegisterServer) returns (Empty);
+
+    // server interfaces
     rpc registerChatServer(RegisterServer) returns (Empty);
+    
 
 }
