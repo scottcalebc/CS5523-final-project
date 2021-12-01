@@ -35,6 +35,15 @@ class NameServer(rpc.NameServerServicer):
         with self.server_lock:
             # remove server from list
             server_obj = self.server_id_map.get(request.id, None)
+
+            if len(server_obj.timestamp.ListFields()) > 0 and len(request.timestamp.ListFields()) > 0:
+                server_obj_date = server_obj.timestamp.ToDatetime()
+                request_date = request.timestamp.ToDatetime()
+
+                if request < server_obj_date:
+                    context.set_detail("Not removing server object as object updated before request time")
+                    return global_msg.Empty()
+
             self.server_id_map[request.id] == None
             
             if server_obj == None:
