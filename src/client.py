@@ -52,7 +52,7 @@ class Client:
         self.root = root
         self.window = window 
         self.__setup_ui()
-
+        
         # get chat name server first
         self.chatServer = self.__get_ChatServer()
         if self.chatServer == None:
@@ -86,16 +86,16 @@ class Client:
     
         # create new listening thread for when new message streams come in
         threading.Thread(name="Message Listener",target=self.__listen_for_messages, daemon=True).start()
-        threading.Thread(name="History Daemon",target=self.__test_GetHistory, daemon=True).start()
+        # threading.Thread(name="History Daemon",target=self.__test_GetHistory, daemon=True).start()
         threading.Thread(name="Connection Handler", target=self.__connectionMgr, daemon=True).start()
 
         
         # if receiving exception from signal will be handled outsie of Client class
         self.window.mainloop()
 
-    def __get_ChatServer(self):
+    def __connect_ns(self, funcName, param):
         port_ns = 3535
-        address_ns = 'localhost'
+        address_ns = '127.0.0.1'
         ns = grpc.insecure_channel(address_ns + ':' + str(port_ns))
         conn_ns = rpc_ns.NameServerStub(ns)
 
@@ -104,16 +104,17 @@ class Client:
         retry = 0
         while retry <= MAX_RETRIES:
             try:
-                print("Attempting to connect to name server")
-                chatServer = conn_ns.getChannel(groupMsg)
-                print(f"Received from Name Server:\n {chatServer}")
-                if chatServer.status == -1:
-                    raise MainExit
-
-                return chatServer
+                print(f"Attempting to connect to name server for func {funcName} with msg: {param}")
+                if getattr(conn_ns, funcName, None) != None:
+                    func = getattr(conn_ns, funcName)
+                    retVal = func(param)
+                    
+                    return retVal
+                else:
+                    raise MainExit("Invalid Name Service Function")
             except grpc.RpcError as e:
                 status_code = e.code()
-
+                print(f"Received rpc error: {status_code} with message {e.details()}")
                 if (status_code == grpc.StatusCode.UNAVAILABLE or 
                         status_code == grpc.StatusCode.DEADLINE_EXCEEDED or
                         status_code == grpc.StatusCode.UNKNOWN):
@@ -124,6 +125,57 @@ class Client:
                         time.sleep(5)
                         os.kill(os.getpid(), signal.SIGUSR1)
 
+                if (status_code == grpc.StatusCode.FAILED_PRECONDITION):
+                    self.chat_write("Waiting for ChatServer...")
+                    time.sleep(MAX_TIMEOUT)
+
+                    retry = retry + 1
+
+        
+    def __notifyDisconnect(self):
+        if self.chatServer == None:
+            return
+
+        self.__connect_ns("notifyDisconnect", self.chatServer)
+        
+        return None
+
+    def __get_ChatServer(self):
+        port_ns = 3535
+        address_ns = '127.0.0.1'
+        ns = grpc.insecure_channel(address_ns + ':' + str(port_ns))
+        conn_ns = rpc_ns.NameServerStub(ns)
+
+        groupMsg = global_msg.Group()
+        groupMsg.name = self.group    
+        retry = 0
+        while retry <= MAX_RETRIES:
+            try:
+                print(f"Attempting to connect to name server with msg: {groupMsg}")
+                chatServer = conn_ns.getChannel(groupMsg)
+                print(f"Received from Name Server:\n {chatServer}")
+                if chatServer.status == -1:
+                    raise MainExit
+
+                return chatServer
+            except grpc.RpcError as e:
+                status_code = e.code()
+                print(f"Received rpc error: {status_code} with message {e.details()}")
+                if (status_code == grpc.StatusCode.UNAVAILABLE or 
+                        status_code == grpc.StatusCode.DEADLINE_EXCEEDED or
+                        status_code == grpc.StatusCode.UNKNOWN):
+
+                        retry = retry + 1
+                if (status_code == grpc.StatusCode.INTERNAL):
+                        self.chat_write("Internal Error from rpc connection, restart application")
+                        time.sleep(5)
+                        os.kill(os.getpid(), signal.SIGUSR1)
+
+                if (status_code == grpc.StatusCode.FAILED_PRECONDITION):
+                    self.chat_write("Waiting for ChatServer...")
+                    time.sleep(MAX_TIMEOUT)
+
+                    retry = retry + 1
         return None
 
     def __channel_connection_monitor(self, chan_conn):
@@ -145,6 +197,7 @@ class Client:
         while True:
             self.disconneted_event.wait(timeout=MAX_TIMEOUT)
             if self.disconneted_event.is_set():
+                self.__notifyDisconnect()
                 chatServer = self.__get_ChatServer()
 
                 print(f"Total retries = {self.total_retries}")
@@ -191,12 +244,13 @@ class Client:
 
                     except grpc.RpcError as e:
                         status_code = e.code()
-                        print(f"Received error on rpc handle ({funcName}) with status: {status_code}")
+                        print(f"Received error on rpc handle ({funcName}) with status: {status_code} and details: {e.details()}")
 
                         # could be some transient or fatal error of server attempt at most MAX_RETRIES
                         if (status_code == grpc.StatusCode.UNAVAILABLE or 
                                 status_code == grpc.StatusCode.DEADLINE_EXCEEDED or
-                                status_code == grpc.StatusCode.UNKNOWN):
+                                status_code == grpc.StatusCode.UNKNOWN or
+                                status_code == grpc.StatusCode.RESOURCE_EXHAUSTED):
                                 print(f"Possible Transient connection issue with chatserver attempting to retry requests")
 
                                 with self.retry_lock:
@@ -210,10 +264,13 @@ class Client:
                                         self.disconneted_event.set()
 
                         # some internal error cannot be handled, close program      
-                        if (status_code == grpc.StatusCode.INTERNAL):
+                        elif (status_code == grpc.StatusCode.INTERNAL):
                                 self.chat_write("Internal Error from rpc connection, restart application")
                                 time.sleep(5)
                                 os.kill(os.getpid(), signal.SIGUSR1)
+
+                        else:
+                            raise e
 
                     
                     return default
@@ -260,6 +317,7 @@ class Client:
 
             except grpc.RpcError as e:
                 status_code = e.code()
+                print(f"Received rpc error during chat streaming with code ({status_code}) and details: {e.details()}")
 
                 # could be some transient or fatal error of server attempt at most MAX_RETRIES
                 if (status_code == grpc.StatusCode.UNAVAILABLE or 
@@ -335,6 +393,7 @@ class Client:
                 # self.conn.SendNote(n)  # send the Note to the server
                 value = None
                 # while value == None and self.connected_event.is_set():
+                msg_invalid_retry = 0
                 while value == None and self.connected_event.is_set():
                     try:
                         value = self.__conn_request("SendNote", n)
@@ -342,7 +401,16 @@ class Client:
                         status_code = e.code()
 
                         print(f"Received unhandled rpc error from connection request: {status_code}")
-                        break
+
+                        if status_code == grpc.StatusCode.FAILED_PRECONDITION:
+                            print("Failed precondition implies message is in past, forwarding time")
+                            if msg_invalid_retry > MAX_RETRIES:
+                                print("Attempted to send message with updated time could not get ahead")
+                                break
+                            msg_invalid_retry = msg_invalid_retry + 1
+                            n.timestamp.GetCurrentTime()
+                        else:
+                            break
             
             self.entry_message.configure(state="normal")
             if value != None:

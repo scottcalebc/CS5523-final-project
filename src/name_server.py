@@ -35,31 +35,44 @@ class NameServer(rpc.NameServerServicer):
         with self.server_lock:
             # remove server from list
             server_obj = self.server_id_map.get(request.id, None)
+            print(f"Found server object: {server_obj}")
+            if server_obj == None:
+                context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Server with that id not attached to chat system")
 
+            print(f"Testing if server reconnected after client attempts to notify system")
             if len(server_obj.timestamp.ListFields()) > 0 and len(request.timestamp.ListFields()) > 0:
                 server_obj_date = server_obj.timestamp.ToDatetime()
                 request_date = request.timestamp.ToDatetime()
 
-                if request < server_obj_date:
+                print(f"Comparing dates {server_obj_date} and {request_date}")
+                if request_date < server_obj_date:
+                    print("Server object newer")
                     context.set_detail("Not removing server object as object updated before request time")
                     return global_msg.Empty()
 
+            print("Clearing id map of object id")
             self.server_id_map[request.id] == None
-            
-            if server_obj == None:
-                context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Server with that id not attached to chat system")
-            else:
-                self.server_ips.pop(server_obj)
+        
+            print("Removing server from server list")
+
+            try:
+                self.server_ips.pop(self.server_ips.index(server_obj))
+            except ValueError as e:
+                context.set_details("Server was not in IP list? Could it have been set somewhere else?")
                 
             
             group = None
+            print("Finding server - group mapping")
             for g, s in self.server_group_map.items():
+                print(f"Testing is group ({g}) sever {s} is the same as {request}")
                 if s.id == request.id:
                     group = g
             
             # reassign group to new chatServer
+            print("Reassigning group")
             if group != None:
                 sys = random.choice(self.server_ips)
+                print(f"Giving group {g} server {sys}")
                 self.server_group_map[group] = sys
             
         return global_msg.Empty()
@@ -67,25 +80,29 @@ class NameServer(rpc.NameServerServicer):
 
 
     def getChannel(self, request: global_msg.Group, context):
-        print(f"Receving request from client interface")
-
+        print(f"Receving request from client interface with msg: {request}")
         if len(request.name) == 0:
             request.name = "all"
 
         with self.server_lock:
+            print("Obtained server lock to retrieve server for client")
             if len(self.server_ips) == 0:
                 context.abort(grpc.StatusCode.FAILED_PRECONDITION, "No Chat Servers available")
 
-            if self.server_group_map.get(request.name, None):
-                    sys = random.choice(self.server_ips)
-                    self.server_group_map[request.name] = sys
+            print(f"Servers avilable attempting to find a server for group: {request.name}")
+            if self.server_group_map.get(request.name, None) == None:
+                print("No server for group, finding new server")
+                sys = random.choice(self.server_ips)
+                print(f"Found server with details: {sys}")
+                self.server_group_map[request.name] = sys
             else:
                 sys = self.server_group_map[request.name]
+                print(f"Server available for {request.name} : {sys}")
                         
             print(f"{self.comp_name} : Request from {request.name} returning {sys}")
             sys.status = 1
 
-        return sys
+            return sys
 
     def registerChatServer(self, request: msg.RegisterServer, context):
         if not request.IsInitialized():
