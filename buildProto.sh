@@ -4,9 +4,12 @@
 
 proj_path=$(pwd)
 py_path="$(which python)"
-pyenvpath=${WORKON_HOME:-"/Users/calebcscott/.virtualenvs"}
+pyenvpath=${WORKON_HOME:-""}
 
 venv() {
+    if [[ -z $pyenvpath || $pyenvpath == "" ]]; then
+        return
+    fi
     if [[ "$py_path" == "$pyenvpath"* ]]; then
         return
     fi
@@ -19,6 +22,9 @@ venv() {
 }
 
 venvleave() {
+    if [[ -z $pyenvpath || $pyenvpath == "" ]]; then
+        return
+    fi
     if [[ "$py_path" == "$pyenvpath"* ]]; then
         return
     fi
