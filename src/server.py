@@ -16,44 +16,58 @@ import interfaces.chatserver_pb2_grpc as rpc
 
 import interfaces.nameservice_pb2 as ns_msg
 import interfaces.nameservice_pb2_grpc as ns_rpc
+import interfaces.databasefacade_pb2_grpc as db_rpc
+
 from src.client import MAX_RETRIES, MAX_TIMEOUT
-
-
-MAX_TIMEOUT = 5
-MAX_RETRIES = 10
-
 
 
 class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf rpc file which is generated
 
-    def __init__(self):
+    def __init__(self, ns, reg_msg):
         # List with all the chat history
 
         self.new_chat_event = threading.Event()
         self.chat_lock = threading.Lock()
         self.chats = {}
         self.chat_last_time = {}
+        self.database_send = {}
 
         self.client_lock = threading.Lock()
         self.clients = {}
+
+        self.database = None
+
+        self.ns = ns
+        self.reg_msg = reg_msg
 
         # initilize event to set so first message will be written
         self.peer_receive_event = threading.Event()
         self.peer_receive_event.set()
 
-    def GetHistory(self, request, context):
-        print(f"GetHistory called by {context.peer()}")
-        context.abort(grpc.StatusCode.UNIMPLEMENTED, "History unavailable")
-########## I want to let the client knows the server is down.#######
-    def Do(self, request, context):
-        if not is_valid_field(request.field):
-            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details('Consarnit!')
-            ###I am not sure if the following is the correct destination proto file##
-            return chatserver_pb2.Response()
+        threading.Thread(name="Database writeback", target=self.__database_write_back, daemon=True).start()
 
-        return chatserver_pb2.Response(response='Yeah!')
-##################################################################
+
+    def __database_write_back(self):
+        print("Starting database write thread")
+        if self.database == None:
+            print("No database write object getting one from the name service")
+            database_struct = self.ns.getDatabase(self.reg_msg)
+            database_chan = grpc.insecure_channel(database_struct.ipAddress + ":" + str(database_struct.port))
+            self.database = db_rpc.DatabaseServerStub(database_chan)
+            
+        while True:
+            self.new_chat_event.wait(MAX_TIMEOUT)
+            if self.new_chat_event.is_set():    
+                with self.chat_lock:
+                    for g, n in self.chats.items():
+                        if g in self.database_send and not self.database_send[g]:
+                            self.database.UploadMessage(n)
+                            self.database_send[g] = True
+
+
+
+                    
+
     # The stream which will be used to send new messages to clients
     def ChatStream(self, request: global_msg.Group, context):
         """
@@ -78,6 +92,9 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
                 print("Adding dictionary entry")
                 self.chats[request.name] = None
                 self.chat_last_time[request.name] = None
+
+            if self.database_send.get(request.name, None) == None:
+                self.database_send[request.name] = False
             
             with self.client_lock:
                 print("Setting up peer information")
@@ -116,7 +133,7 @@ class ChatServer(rpc.ChatServerServicer):  # inheriting here from the protobuf r
                         print("Checking if all peers have received message")
                         print(self.clients[request.name])
                         # if all clients received signal (may cause issue may signal numerous times, will return instantly if event is set)
-                        if self.clients[request.name]["received"] == self.clients[request.name]["total"]:
+                        if self.clients[request.name]["received"] == self.clients[request.name]["total"] and self.database_send[request.name]:
                             print("Clearing chat event setting all peers received event")
                             self.new_chat_event.clear()
                             self.peer_receive_event.set()
@@ -264,26 +281,28 @@ if __name__ == '__main__':
     
     if args.id != None:
         id = args.id
-    # the workers is like the amount of threads that can be opened at the same time, when there are 10 clients connected
-    # then no more clients able to connect to the server.
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=100))  # create a gRPC server
-    rpc.add_ChatServerServicer_to_server(ChatServer(), server)  # register the server to gRPC
-    # gRPC basically manages all the threading and server responding logic, which is perfect!
-    print('Starting server. Listening...')
-    server.add_insecure_port('127.0.0.1:' + str(port))
-    
 
     # After starting server need to register with nameservice
     port_ns = 3535
     address_ns = '127.0.0.1'
     ns = grpc.insecure_channel(address_ns + ":" + str(port_ns))
     conn_ns = ns_rpc.NameServerStub(ns)
-
     registerMessage = ns_msg.RegisterServer()
     registerMessage.ipAddress = helper_funcs.get_ip()
     registerMessage.id = id
     registerMessage.port = port
     registerMessage.timestamp.GetCurrentTime()
+
+    # the workers is like the amount of threads that can be opened at the same time, when there are 10 clients connected
+    # then no more clients able to connect to the server.
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=100))  # create a gRPC server
+    rpc.add_ChatServerServicer_to_server(ChatServer(conn_ns, registerMessage), server)  # register the server to gRPC
+    # gRPC basically manages all the threading and server responding logic, which is perfect!
+    print('Starting server. Listening...')
+    server.add_insecure_port('127.0.0.1:' + str(port))
+    
+
+    
     conn_ns.registerChatServer(registerMessage)
 
     server.start()

@@ -1,5 +1,6 @@
 from concurrent import futures
 import grpc
+import uuid
 import time
 import sys
 import helper_funcs
@@ -102,6 +103,14 @@ if __name__ == '__main__':
     address_ns = '127.0.0.1'
     ns = grpc.insecure_channel(address_ns + ":" + str(port_ns))
     conn_ns = ns_rpc.NameServerStub(ns)
+
+    database_server = ns_msg.RegisterServer()
+    database_server.ipAddress = address_ns
+    database_server.id = str(uuid.uuid4())
+    database_server.port = port
+    database_server.timestamp.GetCurrentTime()
+
+    conn_ns.registerDatabase(database_server)
 
     server.start()
     server.wait_for_termination()
