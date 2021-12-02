@@ -23,12 +23,18 @@ class NameServer(rpc.NameServerServicer):
     def __init__(self):
         self.comp_name = "NameServer"
         
-        
+        # chat server management lock and objects
         self.server_lock = threading.Lock()
         self.server_ips = []
         self.server_group_map = {}
         self.server_id_map = {}
 
+        # database managment objects
+        self.database_list = []
+        self.server_id_database_map = {}
+
+    # notify disconnect of Chat Server needs to be renamed, or add logic to add
+    #   ability to detect if register server is a database or a server
     def notifyDisconnect(self, request: msg.RegisterServer, context):
         print(f"Received a disconnect event of a chatServer")
 
@@ -78,7 +84,7 @@ class NameServer(rpc.NameServerServicer):
         return global_msg.Empty()
 
 
-
+    # get chat server thats mapped to channel 
     def getChannel(self, request: global_msg.Group, context):
         print(f"Receving request from client interface with msg: {request}")
         if len(request.name) == 0:
@@ -91,6 +97,11 @@ class NameServer(rpc.NameServerServicer):
 
             print(f"Servers avilable attempting to find a server for group: {request.name}")
             if self.server_group_map.get(request.name, None) == None:
+
+                if len(self.database_list) > 0:
+                    # TODO create database group, need to set up client connection to database
+                    pass
+
                 print("No server for group, finding new server")
                 sys = random.choice(self.server_ips)
                 print(f"Found server with details: {sys}")
@@ -103,7 +114,10 @@ class NameServer(rpc.NameServerServicer):
             sys.status = 1
 
             return sys
+    
+    ######################### Server Functions
 
+    
     def registerChatServer(self, request: msg.RegisterServer, context):
         if not request.IsInitialized():
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Fields missing from message")
@@ -138,6 +152,28 @@ class NameServer(rpc.NameServerServicer):
 
 
             print(f"All chatservers: {self.server_ips}")
+
+        return global_msg.Empty()
+
+    
+    def getDatabase(self, request: msg.RegisterServer, context):
+
+        # minimal fault tolerance when interacting with database object
+
+        if self.server_id_database_map.get(request.id, None) != None:
+            return self.server_id_database_map[request.id]
+        else:
+            if len(self.database_list) == 0:
+                context.abort(grpc.StatusCode.FAILED_PRECONDITION, "No database objects to hand out")
+            
+            self.server_id_database_map[request.id] = random.choice(self.database_list)
+
+            return self.server_id_database_map[request.id]
+
+    def registerDatabase(self, request: msg.RegisterServer, context):
+        # minimal fault tolerance assume request is valid
+        print(f"Received register database with object: {request}")
+        self.database_list.append(request)
 
         return global_msg.Empty()
 

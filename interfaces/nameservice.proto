@@ -31,8 +31,12 @@ service NameServer {
     rpc getChannel(Group) returns (RegisterServer);
     rpc notifyDisconnect(RegisterServer) returns (Empty);
 
+
     // server interfaces
+    rpc getDatabase(RegisterServer) returns (RegisterServer);
+
     rpc registerChatServer(RegisterServer) returns (Empty);
+    rpc registerDatabase(RegisterServer) returns (Empty);
     
 
 }

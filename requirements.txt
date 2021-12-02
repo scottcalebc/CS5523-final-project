@@ -1,4 +1,5 @@
-grpcio
-grpcio-tools
-protobuf
-six
+firebase-admin==5.1.0
+grpcio==1.41.1
+grpcio-tools==1.41.1
+protobuf==3.19.1
+six==1.16.0
